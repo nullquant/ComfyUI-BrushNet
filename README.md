@@ -15,14 +15,14 @@ pip install -r requirements.txt
 ```
 
 Checkpoints of BrushNet can be downloaded from [here](https://drive.google.com/drive/folders/1fqmS1CEOvXCxNWFrsSYd_jHYXxrydh1n?usp=drive_link). 
-Both `segmentation_mask_brushnet_ckpt` and `random_mask_brushnet_ckpt` should be placed inside models/inpaint/brushnet folder.
+Both `segmentation_mask_brushnet_ckpt` and `random_mask_brushnet_ckpt` should be placed inside `models/inpaint/brushnet` folder.
 Base model should be SD1.5 type (realisticVisionV60B1_v51VAE, for example).
 
 ## Usage
 
-Below is an example for the intended workflow. The [json file](example/BrushNet example.json) for the example can be found inside the 'workflow' directory.
+Below is an example for the intended workflow. The [json file](example/BrushNet_example.json) for the example can be found inside the 'workflow' directory.
 
-![example workflow](example/BrushNet example.png?raw=true)
+![example workflow](example/BrushNet_example.png?raw=true)
 
 
 ## Bugs
