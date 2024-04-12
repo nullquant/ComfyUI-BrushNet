@@ -19,7 +19,7 @@ class BrushNetLoader:
     def INPUT_TYPES(s):
         return {"required":
                     {    
-                        "brushnet": ([x[0][17:] for x in os.walk("./models/inpaint/")], ),
+                        "brushnet": (inpaint_folders(), ),
                      },
                 }
 
@@ -30,11 +30,26 @@ class BrushNetLoader:
     FUNCTION = "brushnet_loading"
 
     def brushnet_loading(self, brushnet):
-        brushnet_path = "./models/inpaint/"+brushnet
+        brushnet_path = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
         print("Brushnet... ", end="")
         brush_net = BrushNetModel.from_pretrained(brushnet_path, torch_dtype=torch.float16)
         print("loaded")
         return (brush_net,)
+
+    
+def inpaint_folders():
+    inpaint_path = os.path.join(folder_paths.models_dir, 'inpaint')
+    abs_list = [x[0] for x in os.walk(inpaint_path)]
+
+    folders = []
+    for x in abs_list[1:]:
+        remain = x
+        y = ''
+        while remain != inpaint_path:
+            remain, folder = os.path.split(remain)
+            y = os.path.join(folder, y)
+        folders.append(y)        
+    return folders
 
 
 class BrushNetPipeline:
@@ -61,7 +76,8 @@ class BrushNetPipeline:
             model_path, 
             brushnet=brushnet, 
             torch_dtype=torch.float16, 
-            low_cpu_mem_usage=False
+            low_cpu_mem_usage=False,
+            original_config_file=os.path.join(os.path.dirname(__file__), "v1-inference.yaml"),
         )
         pipe.to("cuda")
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
