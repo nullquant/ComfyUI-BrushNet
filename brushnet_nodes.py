@@ -55,7 +55,7 @@ class BrushNetPipeline:
     FUNCTION = "pipeline_loading"
 
     def pipeline_loading(self, model, brushnet):
-        model_path = "./models/checkpoints/"+model
+        model_path = folder_paths.get_full_path("checkpoints", model)
         print("Model... ", end="")
         pipe = StableDiffusionBrushNetPipeline.from_single_file(
             model_path, 
