@@ -20,7 +20,7 @@ Base model should be SD1.5 type (realisticVisionV60B1_v51VAE, for example).
 
 ## Usage
 
-Below is an example for the intended workflow. The [json file](example/BrushNet_example.json) for the example can be found inside the 'workflow' directory.
+Below is an example for the intended workflow. The [json file](example/BrushNet_example.json) for the example can be found inside the 'example' directory.
 
 ![example workflow](example/BrushNet_example.png?raw=true)
 
