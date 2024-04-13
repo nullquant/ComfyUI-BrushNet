@@ -18,6 +18,10 @@ Checkpoints of BrushNet can be downloaded from [here](https://drive.google.com/d
 Both `segmentation_mask_brushnet_ckpt` and `random_mask_brushnet_ckpt` should be placed inside `models/inpaint/brushnet` folder.
 Base model should be SD1.5 type (realisticVisionV60B1_v51VAE, for example).
 
+The checkpoint in `segmentation_mask_brushnet_ckpt` provides checkpoints trained on BrushData, which has segmentation prior (mask are with the same shape of objects). The `random_mask_brushnet_ckpt` provides a more general ckpt for random mask shape.
+
+![brushnet folder](example/brushnet_folder.png?raw=true)
+
 ## Usage
 
 Below is an example for the intended workflow. The [json file](example/BrushNet_example.json) for the example can be found inside the 'example' directory.
