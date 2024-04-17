@@ -1,6 +1,7 @@
 torch
+diffusers
+accelerate
 numpy
 opencv-python
 Pillow
-accelerate
-git+https://github.com/nullquant/diffusers.git
+yaml

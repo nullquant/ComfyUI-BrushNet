@@ -1,17 +1,40 @@
-from typing import Tuple
 import torch
-from diffusers import StableDiffusionBrushNetPipeline, BrushNetModel, UniPCMultistepScheduler
-import os
-import numpy as np
 import cv2
+import numpy as np
 from PIL import Image
 
+import os
+import yaml
 import folder_paths
+
+import importlib
+from contextlib import nullcontext
+is_accelerate_available = importlib.util.find_spec("accelerate") is not None
+if is_accelerate_available:
+    from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+
+from comfy.model_management import load_models_gpu 
+
+from diffusers.loaders.single_file_utils import create_unet_diffusers_config, convert_ldm_unet_checkpoint
+from diffusers.loaders.single_file_utils import create_scheduler_from_ldm, create_diffusers_vae_model_from_ldm
+from diffusers.models.modeling_utils import load_model_dict_into_meta
+
+from diffusers import UniPCMultistepScheduler
+
+from .brushnet.brushnet import BrushNetModel
+from .brushnet.pipeline_brushnet import StableDiffusionBrushNetPipeline
+from .brushnet.unet_2d_condition import UNet2DConditionModel
+
+from typing import Tuple
+
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 
-
+current_directory = os.path.dirname(os.path.abspath(__file__))
+original_config_file = os.path.join(current_directory, 'brushnet', 'v1-inference.yaml')
+brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
+torch_dtype = torch.float16
 
 class BrushNetLoader:
 
@@ -19,7 +42,7 @@ class BrushNetLoader:
     def INPUT_TYPES(s):
         return {"required":
                     {    
-                        "brushnet": (inpaint_folders(), ),
+                        "brushnet": (inpaint_safetensors(), ),
                      },
                 }
 
@@ -30,26 +53,48 @@ class BrushNetLoader:
     FUNCTION = "brushnet_loading"
 
     def brushnet_loading(self, brushnet):
-        brushnet_path = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
-        print("Brushnet... ", end="")
-        brush_net = BrushNetModel.from_pretrained(brushnet_path, torch_dtype=torch.float16)
-        print("loaded")
-        return (brush_net,)
+        brushnet_file = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
+
+        with init_empty_weights():
+            brushnet_config = BrushNetModel.load_config(brushnet_config_file)
+            brushnet_model = BrushNetModel.from_config(brushnet_config)
+
+        brushnet_model = load_checkpoint_and_dispatch(
+            brushnet_model,
+            brushnet_file,
+            device_map="auto",
+            max_memory=None,
+            offload_folder=None,
+            offload_state_dict=False,
+            dtype=torch_dtype,
+            force_hooks=False,
+        )
+
+        print("BrushNet model is loaded")
+
+        return (brushnet_model,)
 
     
-def inpaint_folders():
+def inpaint_safetensors():
     inpaint_path = os.path.join(folder_paths.models_dir, 'inpaint')
-    abs_list = [x[0] for x in os.walk(inpaint_path)]
-
-    folders = []
-    for x in abs_list[1:]:
+    brushnet_path = os.path.join(inpaint_path, 'brushnet')
+    abs_list = []
+    for x in os.walk(brushnet_path):
+        for name in x[2]:
+            if 'safetensors' in name:
+                abs_list.append(os.path.join(x[0], name))
+    names = []
+    for x in abs_list:
         remain = x
         y = ''
         while remain != inpaint_path:
             remain, folder = os.path.split(remain)
-            y = os.path.join(folder, y)
-        folders.append(y)        
-    return folders
+            if len(y) > 0:
+                y = os.path.join(folder, y)
+            else:
+                y = folder
+        names.append(y)     
+    return names
 
 
 class BrushNetPipeline:
@@ -58,7 +103,9 @@ class BrushNetPipeline:
     def INPUT_TYPES(s):
         return {"required":
                     {    
-                        "model": (folder_paths.get_filename_list("checkpoints"), ),
+                        "model": ("MODEL",),
+                        "clip": ("CLIP", ),
+                        "vae": ("VAE", ),
                         "brushnet": ("BRMODEL", ),
                      },
                 }
@@ -69,22 +116,55 @@ class BrushNetPipeline:
 
     FUNCTION = "pipeline_loading"
 
-    def pipeline_loading(self, model, brushnet):
-        model_path = folder_paths.get_full_path("checkpoints", model)
-        print("Model... ", end="")
-        pipe = StableDiffusionBrushNetPipeline.from_single_file(
-            model_path, 
-            brushnet=brushnet, 
-            torch_dtype=torch.float16, 
-            low_cpu_mem_usage=False,
-            original_config_file=os.path.join(os.path.dirname(__file__), "v1-inference.yaml"),
+    def pipeline_loading(self, model, clip, vae, brushnet):
+        load_models_gpu([model, clip.load_model()])
+        checkpoint = model.model.state_dict_for_saving(clip.get_sd(), vae.get_sd(), None)
+
+        with open(original_config_file, "r") as fp:
+            original_config_data = fp.read()
+        original_config = yaml.safe_load(original_config_data)
+        unet = create_unet(original_config, checkpoint, torch_dtype)
+
+        vae = create_diffusers_vae_model_from_ldm(
+            'StableDiffusionBrushNetPipeline',
+            original_config,
+            checkpoint,
+            image_size=None,
+            scaling_factor=None,
+            torch_dtype=None,
+            model_type=None,
         )
-        pipe.to("cuda")
+
+        scheduler_type = "ddim"
+        prediction_type = None
+        scheduler_components = create_scheduler_from_ldm(
+            'StableDiffusionBrushNetPipeline',
+            original_config,
+            checkpoint,
+            scheduler_type=scheduler_type,
+            prediction_type=prediction_type,
+            model_type=None,
+        )
+
+        pipe = StableDiffusionBrushNetPipeline(
+            unet=unet['unet'], 
+            vae=vae['vae'], 
+            text_encoder=None, 
+            tokenizer=None, 
+            scheduler=scheduler_components['scheduler'],
+            brushnet=brushnet,
+            requires_safety_checker=False, 
+            safety_checker=None,
+            feature_extractor=None
+        )  
+
+        pipe.to(dtype=torch_dtype)
         pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
         pipe.enable_model_cpu_offload()
-        print("loaded")
-        return (pipe,)
 
+        print("BrushNet pipeline is loaded")
+
+        return (pipe,)
 
 
 class BrushNetInpaint:
@@ -96,7 +176,8 @@ class BrushNetInpaint:
                         "BRPL": ("BRPL", ),
                         "image": ("IMAGE",),
                         "mask": ("MASK",),
-                        "prompt": ("STRING", {"multiline": False, "default": ""}),
+                        "positive": ("CONDITIONING", ),
+                        "negative": ("CONDITIONING", ),
                         "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
                         "steps": ("INT", {"default": 50, "min": 1, "max": 10000}),
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
@@ -109,9 +190,8 @@ class BrushNetInpaint:
 
     FUNCTION = "brushnet_inpaint"
 
-    def brushnet_inpaint(self, BRPL, image: torch.Tensor, mask: torch.Tensor, prompt: str, seed: int, 
+    def brushnet_inpaint(self, BRPL, image: torch.Tensor, mask: torch.Tensor, positive, negative, seed: int, 
                          steps: int, scale: float) -> Tuple[torch.Tensor]:
-
 
         print("Working on image")
 
@@ -128,11 +208,20 @@ class BrushNetInpaint:
 
         print("Inference started")
 
+        pos_embeds = positive
+        while isinstance(pos_embeds, list):
+            pos_embeds = pos_embeds[0]
+            
+        neg_embeds = negative
+        while isinstance(neg_embeds, list):
+            neg_embeds = neg_embeds[0]
+
         generator = torch.Generator("cuda").manual_seed(seed)
         result = BRPL(
-            prompt, 
-            init_image, 
-            mask_image, 
+            image=init_image, 
+            mask=mask_image, 
+            prompt_embeds=pos_embeds,
+            negative_prompt_embeds=neg_embeds,
             num_inference_steps=steps, 
             generator=generator,
             brushnet_conditioning_scale=scale
@@ -190,3 +279,34 @@ def numpy_to_tensor(array: np.ndarray) -> torch.Tensor:
     """Convert a numpy array to a tensor and scale its values from 0-255 to 0-1."""
     array = array.astype(np.float32) / 255.0
     return torch.from_numpy(array)[None,]
+
+def create_unet(original_config, checkpoint, torch_dtype):
+    num_in_channels = 4
+    image_size = 512
+    
+    unet_config = create_unet_diffusers_config(original_config, image_size=image_size)
+    unet_config["in_channels"] = num_in_channels
+    diffusers_format_unet_checkpoint = convert_ldm_unet_checkpoint(checkpoint, unet_config, extract_ema=False)
+    
+    ctx = init_empty_weights if is_accelerate_available else nullcontext
+
+    with ctx():
+        unet = UNet2DConditionModel(**unet_config)
+
+    if is_accelerate_available:
+        unexpected_keys = load_model_dict_into_meta(unet, diffusers_format_unet_checkpoint, dtype=torch_dtype)
+        if unet._keys_to_ignore_on_load_unexpected is not None:
+            for pat in unet._keys_to_ignore_on_load_unexpected:
+                unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
+
+        if len(unexpected_keys) > 0:
+            print(
+                f"Some weights of the model checkpoint were not used when initializing {unet.__name__}: \n {[', '.join(unexpected_keys)]}"
+            )
+    else:
+        unet.load_state_dict(diffusers_format_unet_checkpoint)
+
+    if torch_dtype is not None:
+        unet = unet.to(torch_dtype)
+
+    return {"unet": unet}
