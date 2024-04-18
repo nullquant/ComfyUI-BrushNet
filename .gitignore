@@ -2,3 +2,5 @@
 .vscode/
 *.tmp
 *.dblite
+
+Dockerfile
