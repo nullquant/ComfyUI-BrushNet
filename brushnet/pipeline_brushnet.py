@@ -430,9 +430,12 @@ class StableDiffusionBrushNetPipeline(
             negative_prompt_embeds = negative_prompt_embeds.repeat(1, num_images_per_prompt, 1)
             negative_prompt_embeds = negative_prompt_embeds.view(batch_size * num_images_per_prompt, seq_len, -1)
 
-        if isinstance(self, LoraLoaderMixin) and USE_PEFT_BACKEND:
-            # Retrieve the original scale by scaling back the LoRA layers
-            unscale_lora_layers(self.text_encoder, lora_scale)
+        # self.text_encoder is not used after encode_prompt()
+        # self.text_encoder = None (we use prompt_embeds and negative_prompt_embeds in brushnet_nodes)
+        # So, nullquant commented out this section. 
+        #if isinstance(self, LoraLoaderMixin) and USE_PEFT_BACKEND:
+        #    # Retrieve the original scale by scaling back the LoRA layers
+        #    unscale_lora_layers(self.text_encoder, lora_scale)
 
         return prompt_embeds, negative_prompt_embeds
 
