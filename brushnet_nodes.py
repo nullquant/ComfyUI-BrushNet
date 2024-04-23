@@ -195,10 +195,14 @@ class BrushNetInpaint:
 
         print("Working on image")
 
-        init_image = image_from_tensor(image[0])
-        mask_image = image_from_tensor(mask[0])
+        # no batches
+        if len(image.shape) > 3:
+            image = image[0]
+        if len(mask.shape) > 2:
+            mask = mask[0]
 
-        # resize image and mask
+        init_image = image_from_tensor(image)
+        mask_image = image_from_tensor(mask)
 
         mask_image = 1.*(mask_image>250)[:,:,np.newaxis]
         init_image = init_image * (1-mask_image)
@@ -251,9 +255,17 @@ class BlendInpaint:
 
     def blend_inpaint(self, image1: torch.Tensor, image2: torch.Tensor, mask: torch.Tensor, blur: int) -> Tuple[torch.Tensor]:
 
-        init_image1 = image_from_tensor(image1[0])
-        init_image2 = image_from_tensor(image2[0])
-        mask_image = image_from_tensor(mask[0])
+        # no batches
+        if len(image1.shape) > 3:
+            image1 = image1[0]
+        if len(image2.shape) > 3:
+            image2 = image1[0]
+        if len(mask.shape) > 2:
+            mask = mask[0]
+
+        init_image1 = image_from_tensor(image1)
+        init_image2 = image_from_tensor(image2)
+        mask_image = image_from_tensor(mask)
 
         mask_image = 1.*(mask_image>250)[:,:,np.newaxis]
 
