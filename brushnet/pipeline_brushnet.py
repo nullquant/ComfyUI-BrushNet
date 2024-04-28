@@ -1124,6 +1124,7 @@ class StableDiffusionBrushNetPipeline(
         )
 
         # 6.1 prepare condition latents
+
         conditioning_latents=self.vae.encode(image).latent_dist.sample() * self.vae.config.scaling_factor
         mask = torch.nn.functional.interpolate(
                     original_mask, 
@@ -1133,7 +1134,6 @@ class StableDiffusionBrushNetPipeline(
                     )
                 )
         conditioning_latents = torch.concat([conditioning_latents,mask],1)
-
 
         # 6.5 Optionally get Guidance Scale Embedding
         timestep_cond = None
@@ -1197,9 +1197,9 @@ class StableDiffusionBrushNetPipeline(
 
                 down_block_res_samples, mid_block_res_sample, up_block_res_samples = self.brushnet(
                     control_model_input,
-                    t,
                     encoder_hidden_states=brushnet_prompt_embeds,
                     brushnet_cond=conditioning_latents,
+                    timestep=t,
                     conditioning_scale=cond_scale,
                     guess_mode=guess_mode,
                     return_dict=False,

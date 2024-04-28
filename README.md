@@ -4,6 +4,13 @@ Custom nodes for ComfyUI allow to inpaint using Brushnet:  ["BrushNet: A Plug-an
 
 My contribution is limited to the ComfyUI adaptation, and all credit goes to the authors of the paper.
 
+## Updates
+
+Apr 28, 2014. Another rework, sorry for inconvenience. But now BrushNet is native to ComfyUI. Famous cubiq's [IPAdapter Plus](https://github.com/cubiq/ComfyUI_IPAdapter_plus) is now working with BrushNet! I hope... :) Please, report any bugs you found.
+
+Apr 18, 2024. Complete rework, no more custom `diffusers` library. It is possible to use LoRA models.
+
+Apr 11, 2024. Initial commit.
 
 ## Installation
 
@@ -22,25 +29,43 @@ Both `segmentation_mask_brushnet_ckpt` and `random_mask_brushnet_ckpt` or only o
 
 Base model should be SD1.5 type (realisticVisionV60B1_v51VAE, for example).
 
-This is complete rework of previous version. There is no more custom `diffusers` library. 
-There is no loadings from github. I also changed the workflow so now it is possible to use LoRa models.
-To users who already have previoous version: please, uninstall `diffusers` library before installation:
-
-```
-pip uninstall diffusers
-```
-
-Then install as usual.
-
 ## Usage
 
 Below is an example for the intended workflow. The [json file](example/BrushNet_basic.json) for the example can be found inside the 'example' directory.
 
 ![example workflow](example/BrushNet_basic.png?raw=true)
 
-This is example with LoRA: [json file](example/BrushNet_with_LoRA.json).
+<details>
+  <summary>IPAdapter plus</summary>
+  
+[json file](example/BrushNet_with_IPA.json)
+
+![example workflow](example/BrushNet_with_IPA.png?raw=true)
+
+</details>
+
+<details>
+  <summary>LoRA</summary>
+  
+[json file](example/BrushNet_with_LoRA.json)
 
 ![example workflow](example/BrushNet_with_LoRA.png?raw=true)
+
+</details>
+
+<details>
+  <summary>Blending inpaint</summary>
+
+Sometimes inference and VAE broke image, so you need to blend inpaint image with the original: [json file](example/BrushNet_inpaint.json)
+
+![example workflow](example/BrushNet_inpaint.png?raw=true)
+
+You can see blurred and broken text after inpainting in the first image and how I suppose to repair it.
+
+</details>
+
+
+
 
 
 ## Credits

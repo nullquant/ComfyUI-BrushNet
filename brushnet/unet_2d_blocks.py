@@ -1393,6 +1393,7 @@ class CrossAttnDownBlock2D(nn.Module):
             if down_block_add_samples is not None:
                 hidden_states = hidden_states + down_block_add_samples.pop(0) 
 
+
             output_states = output_states + (hidden_states,)
 
         if self.downsamplers is not None:
@@ -2808,7 +2809,6 @@ class UpBlock2D(nn.Module):
                 output_states = output_states + (hidden_states,)
             if up_block_add_samples is not None:
                 hidden_states = hidden_states + up_block_add_samples.pop(0)  # todo: add before or after
-            
 
         if return_res_samples:
             return hidden_states, output_states

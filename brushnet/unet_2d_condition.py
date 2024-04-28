@@ -1221,6 +1221,8 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 if is_adapter and len(down_intrablock_additional_residuals) > 0:
                     additional_residuals["additional_residuals"] = down_intrablock_additional_residuals.pop(0)
 
+                i = len(down_block_add_samples)
+
                 if is_brushnet and len(down_block_add_samples)>0:
                     additional_residuals["down_block_add_samples"] = [down_block_add_samples.pop(0) 
                                                         for _ in range(len(downsample_block.resnets)+(downsample_block.downsamplers !=None))]
@@ -1236,6 +1238,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 )
             else:
                 additional_residuals = {}
+
+                i = len(down_block_add_samples)
+
                 if is_brushnet and len(down_block_add_samples)>0:
                     additional_residuals["down_block_add_samples"] = [down_block_add_samples.pop(0) 
                                                         for _ in range(len(downsample_block.resnets)+(downsample_block.downsamplers !=None))]
@@ -1299,6 +1304,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
 
             if hasattr(upsample_block, "has_cross_attention") and upsample_block.has_cross_attention:
                 additional_residuals = {}
+
+                i = len(up_block_add_samples)
+
                 if is_brushnet and len(up_block_add_samples)>0:
                     additional_residuals["up_block_add_samples"] = [up_block_add_samples.pop(0) 
                                                         for _ in range(len(upsample_block.resnets)+(upsample_block.upsamplers !=None))]
@@ -1316,6 +1324,9 @@ class UNet2DConditionModel(ModelMixin, ConfigMixin, UNet2DConditionLoadersMixin,
                 )
             else:
                 additional_residuals = {}
+
+                i = len(up_block_add_samples)
+
                 if is_brushnet and len(up_block_add_samples)>0:
                     additional_residuals["up_block_add_samples"] = [up_block_add_samples.pop(0) 
                                                         for _ in range(len(upsample_block.resnets)+(upsample_block.upsamplers !=None))]

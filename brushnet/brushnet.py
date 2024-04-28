@@ -679,9 +679,10 @@ class BrushNetModel(ModelMixin, ConfigMixin):
     def forward(
         self,
         sample: torch.FloatTensor,
-        timestep: Union[torch.Tensor, float, int],
         encoder_hidden_states: torch.Tensor,
         brushnet_cond: torch.FloatTensor,
+        timestep = None,
+        time_emb = None,
         conditioning_scale: float = 1.0,
         class_labels: Optional[torch.Tensor] = None,
         timestep_cond: Optional[torch.Tensor] = None,
@@ -730,6 +731,7 @@ class BrushNetModel(ModelMixin, ConfigMixin):
                 If `return_dict` is `True`, a [`~models.brushnet.BrushNetOutput`] is returned, otherwise a tuple is
                 returned where the first element is the sample tensor.
         """
+
         # check channel order
         channel_order = self.config.brushnet_conditioning_channel_order
 
@@ -746,71 +748,76 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
             attention_mask = attention_mask.unsqueeze(1)
 
-        # 1. time
-        timesteps = timestep
-        if not torch.is_tensor(timesteps):
-            # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
-            # This would be a good case for the `match` statement (Python 3.10+)
-            is_mps = sample.device.type == "mps"
-            if isinstance(timestep, float):
-                dtype = torch.float32 if is_mps else torch.float64
-            else:
-                dtype = torch.int32 if is_mps else torch.int64
-            timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
-        elif len(timesteps.shape) == 0:
-            timesteps = timesteps[None].to(sample.device)
+        if timestep is None and time_emb is None:
+            raise ValueError(f"`timestep` and `emb` are both None")
 
-        # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
-        timesteps = timesteps.expand(sample.shape[0])
+        if timestep is not None:
+            # 1. time
+            timesteps = timestep
+            if not torch.is_tensor(timesteps):
+                # TODO: this requires sync between CPU and GPU. So try to pass timesteps as tensors if you can
+                # This would be a good case for the `match` statement (Python 3.10+)
+                is_mps = sample.device.type == "mps"
+                if isinstance(timestep, float):
+                    dtype = torch.float32 if is_mps else torch.float64
+                else:
+                    dtype = torch.int32 if is_mps else torch.int64
+                timesteps = torch.tensor([timesteps], dtype=dtype, device=sample.device)
+            elif len(timesteps.shape) == 0:
+                timesteps = timesteps[None].to(sample.device)
 
-        t_emb = self.time_proj(timesteps)
+            # broadcast to batch dimension in a way that's compatible with ONNX/Core ML
+            timesteps = timesteps.expand(sample.shape[0])
 
-        # timesteps does not contain any weights and will always return f32 tensors
-        # but time_embedding might actually be running in fp16. so we need to cast here.
-        # there might be better ways to encapsulate this.
-        t_emb = t_emb.to(dtype=sample.dtype)
+            t_emb = self.time_proj(timesteps)
 
-        emb = self.time_embedding(t_emb, timestep_cond)
-        aug_emb = None
+            # timesteps does not contain any weights and will always return f32 tensors
+            # but time_embedding might actually be running in fp16. so we need to cast here.
+            # there might be better ways to encapsulate this.
+            t_emb = t_emb.to(dtype=sample.dtype)
 
-        if self.class_embedding is not None:
-            if class_labels is None:
-                raise ValueError("class_labels should be provided when num_class_embeds > 0")
+            emb = self.time_embedding(t_emb, timestep_cond)
+            aug_emb = None
 
-            if self.config.class_embed_type == "timestep":
-                class_labels = self.time_proj(class_labels)
+            if self.class_embedding is not None:
+                if class_labels is None:
+                    raise ValueError("class_labels should be provided when num_class_embeds > 0")
 
-            class_emb = self.class_embedding(class_labels).to(dtype=self.dtype)
-            emb = emb + class_emb
+                if self.config.class_embed_type == "timestep":
+                    class_labels = self.time_proj(class_labels)
 
-        if self.config.addition_embed_type is not None:
-            if self.config.addition_embed_type == "text":
-                aug_emb = self.add_embedding(encoder_hidden_states)
+                class_emb = self.class_embedding(class_labels).to(dtype=self.dtype)
+                emb = emb + class_emb
 
-            elif self.config.addition_embed_type == "text_time":
-                if "text_embeds" not in added_cond_kwargs:
-                    raise ValueError(
-                        f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `text_embeds` to be passed in `added_cond_kwargs`"
-                    )
-                text_embeds = added_cond_kwargs.get("text_embeds")
-                if "time_ids" not in added_cond_kwargs:
-                    raise ValueError(
-                        f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"
-                    )
-                time_ids = added_cond_kwargs.get("time_ids")
-                time_embeds = self.add_time_proj(time_ids.flatten())
-                time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
+            if self.config.addition_embed_type is not None:
+                if self.config.addition_embed_type == "text":
+                    aug_emb = self.add_embedding(encoder_hidden_states)
 
-                add_embeds = torch.concat([text_embeds, time_embeds], dim=-1)
-                add_embeds = add_embeds.to(emb.dtype)
-                aug_emb = self.add_embedding(add_embeds)
+                elif self.config.addition_embed_type == "text_time":
+                    if "text_embeds" not in added_cond_kwargs:
+                        raise ValueError(
+                            f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `text_embeds` to be passed in `added_cond_kwargs`"
+                        )
+                    text_embeds = added_cond_kwargs.get("text_embeds")
+                    if "time_ids" not in added_cond_kwargs:
+                        raise ValueError(
+                            f"{self.__class__} has the config param `addition_embed_type` set to 'text_time' which requires the keyword argument `time_ids` to be passed in `added_cond_kwargs`"
+                        )
+                    time_ids = added_cond_kwargs.get("time_ids")
+                    time_embeds = self.add_time_proj(time_ids.flatten())
+                    time_embeds = time_embeds.reshape((text_embeds.shape[0], -1))
 
-        emb = emb + aug_emb if aug_emb is not None else emb
+                    add_embeds = torch.concat([text_embeds, time_embeds], dim=-1)
+                    add_embeds = add_embeds.to(emb.dtype)
+                    aug_emb = self.add_embedding(add_embeds)
 
+            emb = emb + aug_emb if aug_emb is not None else emb
+        else:
+            emb = time_emb
+        
         # 2. pre-process
         brushnet_cond=torch.concat([sample,brushnet_cond],1)
         sample = self.conv_in_condition(brushnet_cond)
-
 
         # 3. down
         down_block_res_samples = (sample,)
@@ -850,7 +857,6 @@ class BrushNetModel(ModelMixin, ConfigMixin):
 
         # 6. BrushNet mid blocks
         brushnet_mid_block_res_sample = self.brushnet_mid_block(sample)
-
 
         # 7. up
         up_block_res_samples = ()

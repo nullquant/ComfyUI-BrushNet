@@ -1,4 +1,5 @@
 import torch
+import torchvision.transforms as T
 import cv2
 import numpy as np
 from PIL import Image
@@ -7,23 +8,24 @@ import os
 import yaml
 import folder_paths
 
+import sys
+# Get the parent directory of 'comfy' and add it to the Python path
+comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+sys.path.append(comfy_parent_dir)
+import comfy
+import nodes
+import latent_preview
+
 import importlib
 from contextlib import nullcontext
 is_accelerate_available = importlib.util.find_spec("accelerate") is not None
 if is_accelerate_available:
     from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
-from comfy.model_management import load_models_gpu 
-
-from diffusers.loaders.single_file_utils import create_unet_diffusers_config, convert_ldm_unet_checkpoint
-from diffusers.loaders.single_file_utils import create_scheduler_from_ldm, create_diffusers_vae_model_from_ldm
-from diffusers.models.modeling_utils import load_model_dict_into_meta
-
-from diffusers import UniPCMultistepScheduler
+from diffusers.loaders.single_file_utils import create_diffusers_vae_model_from_ldm
+from diffusers.image_processor import VaeImageProcessor
 
 from .brushnet.brushnet import BrushNetModel
-from .brushnet.pipeline_brushnet import StableDiffusionBrushNetPipeline
-from .brushnet.unet_2d_condition import UNet2DConditionModel
 
 from typing import Tuple
 
@@ -97,74 +99,113 @@ def inpaint_safetensors():
     return names
 
 
-class BrushNetPipeline:
+class BrushNet:
 
     @classmethod
     def INPUT_TYPES(s):
         return {"required":
                     {    
                         "model": ("MODEL",),
-                        "clip": ("CLIP", ),
                         "vae": ("VAE", ),
+                        "image": ("IMAGE",),
+                        "mask": ("MASK",),
                         "brushnet": ("BRMODEL", ),
+                        "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
                      },
                 }
 
     CATEGORY = "inpaint"
-    RETURN_TYPES = ("BRPL",)
-    RETURN_NAMES = ("BRPL",)
+    RETURN_TYPES = ("MODEL",)
+    RETURN_NAMES = ("model",)
 
-    FUNCTION = "pipeline_loading"
+    FUNCTION = "model_update"
 
-    def pipeline_loading(self, model, clip, vae, brushnet):
-        load_models_gpu([model, clip.load_model()])
-        checkpoint = model.model.state_dict_for_saving(clip.get_sd(), vae.get_sd(), None)
+    def model_update(self, model, vae, image, mask, brushnet, scale):
+
+        # prepare image and mask
+        # no batches yet
+        #if len(image.shape) > 3:
+        #    image = image[0]
+        #if len(mask.shape) > 2:
+        #    mask = mask[0]
+
+        masked_image = image * (1.0 - mask[:,:,:,None])
+        masked_image = masked_image.permute(0, 3, 1, 2)
+
+        vae_scale_factor = 8 # 2 ** (len(diff_vae.config.block_out_channels) - 1)
+        image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor, do_convert_rgb=True)
+
+        width = masked_image.shape[2]
+        height = masked_image.shape[3]
+
+        # create diffusers VAE
 
         with open(original_config_file, "r") as fp:
             original_config_data = fp.read()
         original_config = yaml.safe_load(original_config_data)
-        unet = create_unet(original_config, checkpoint, torch_dtype)
 
-        vae = create_diffusers_vae_model_from_ldm(
-            'StableDiffusionBrushNetPipeline',
+        diff_vae = create_diffusers_vae_model_from_ldm(
+            "StableDiffusionBrushNetPipeline",
             original_config,
-            checkpoint,
+            vae.get_sd(),
             image_size=None,
             scaling_factor=None,
             torch_dtype=None,
             model_type=None,
-        )
+        )['vae']
 
-        scheduler_type = "ddim"
-        prediction_type = None
-        scheduler_components = create_scheduler_from_ldm(
-            'StableDiffusionBrushNetPipeline',
-            original_config,
-            checkpoint,
-            scheduler_type=scheduler_type,
-            prediction_type=prediction_type,
-            model_type=None,
-        )
+        _ = diff_vae.to('cuda').to(dtype=torch_dtype)
 
-        pipe = StableDiffusionBrushNetPipeline(
-            unet=unet['unet'], 
-            vae=vae['vae'], 
-            text_encoder=None, 
-            tokenizer=None, 
-            scheduler=scheduler_components['scheduler'],
-            brushnet=brushnet,
-            requires_safety_checker=False, 
-            safety_checker=None,
-            feature_extractor=None
-        )  
+        processed_image = image_processor.preprocess(masked_image, height=height, width=width).to(dtype=torch.float32)
+        processed_image = torch.cat([processed_image] * 2)
+        processed_image = processed_image.to(device=diff_vae.device, dtype=diff_vae.dtype)
 
-        pipe.to(dtype=torch_dtype)
-        pipe.scheduler = UniPCMultistepScheduler.from_config(pipe.scheduler.config)
-        pipe.enable_model_cpu_offload()
+        image_latents = diff_vae.encode(processed_image).latent_dist.sample() * diff_vae.config.scaling_factor
 
-        print("BrushNet pipeline is loaded")
+        processed_mask = torch.cat([1. - mask[None,:,:,:]] * 2)
+        interpolated_mask = torch.nn.functional.interpolate(
+                    processed_mask, 
+                    size=(
+                        image_latents.shape[-2], 
+                        image_latents.shape[-1]
+                    )
+                )
+        interpolated_mask = interpolated_mask.to(device=diff_vae.device, dtype=diff_vae.dtype)
 
-        return (pipe,)
+        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet.device)
+
+        del diff_vae        
+
+        # apply patches to code
+
+        brushnet_conditioning_scale = scale
+        control_guidance_start = 0.0
+        control_guidance_end = 1.0
+
+        if not hasattr(nodes, 'original_common_ksampler'):
+            nodes.original_common_ksampler = nodes.common_ksampler
+            nodes.common_ksampler = modified_common_ksampler
+
+        if not hasattr(comfy.ldm.modules.diffusionmodules.openaimodel, 'original_forward_timestep_embed'):
+            comfy.ldm.modules.diffusionmodules.openaimodel.original_forward_timestep_embed =  \
+            comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed
+            comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed = modified_forward_timestep_embed
+
+        # apply patch to model
+
+        add_brushnet_patch(model, brushnet, conditioning_latents, 
+                           [brushnet_conditioning_scale, control_guidance_start, control_guidance_end])
+        
+        add_model_patch(model, brushnet_inference, ('input', 0), (0, 'before'))
+        input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
+        for i, j in input_blocks:
+            add_model_patch(model, apply_brushnet, ('input', i), (j, 'after'))
+        add_model_patch(model, apply_brushnet, ('middle', 0), (2, 'after'))
+        output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
+        for i, j in output_blocks:
+            add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
+
+        return (model,)
 
 
 class BrushNetInpaint:
@@ -240,46 +281,202 @@ class BlendInpaint:
     def INPUT_TYPES(s):
         return {"required":
                     {    
-                        "image1": ("IMAGE",),
-                        "image2": ("IMAGE",),
+                        "inpaint": ("IMAGE",),
+                        "original": ("IMAGE",),
                         "mask": ("MASK",),
-                        "blur": ("INT", {"default": 21, "min": 0, "max": 1000}),
+                        "kernel": ("INT", {"default": 10, "min": 1, "max": 1000}),
+                        "sigma": ("FLOAT", {"default": 10.0, "min": 0.01, "max": 1000}),
                      },
                 }
 
     CATEGORY = "inpaint"
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
+    RETURN_TYPES = ("IMAGE","MASK",)
+    RETURN_NAMES = ("image","MASK",)
 
     FUNCTION = "blend_inpaint"
 
-    def blend_inpaint(self, image1: torch.Tensor, image2: torch.Tensor, mask: torch.Tensor, blur: int) -> Tuple[torch.Tensor]:
+    def blend_inpaint(self, inpaint: torch.Tensor, original: torch.Tensor, mask: torch.Tensor, kernel: int, sigma:int) -> Tuple[torch.Tensor]:
 
-        # no batches
-        if len(image1.shape) > 3:
-            image1 = image1[0]
-        if len(image2.shape) > 3:
-            image2 = image1[0]
+        # no batches over mask and original image
         if len(mask.shape) > 2:
             mask = mask[0]
+        if len(original.shape) > 3:
+            original = original[0]
 
-        init_image1 = image_from_tensor(image1)
-        init_image2 = image_from_tensor(image2)
-        mask_image = image_from_tensor(mask)
+        if kernel % 2 == 0:
+            kernel += 1
+        transform = T.GaussianBlur(kernel_size=(kernel, kernel), sigma=(sigma, sigma))
+        blurred_mask = transform(mask[None,None,:,:])
 
-        mask_image = 1.*(mask_image>250)[:,:,np.newaxis]
+        ret = []
+        for result in inpaint:
+            ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result * blurred_mask[0][0][:,:,None])
 
-        # blur, you can adjust the parameters for better performance
-        mask_blurred = cv2.GaussianBlur(mask_image*255, (blur, blur), 0)/255
-        mask_blurred = mask_blurred[:,:,np.newaxis]
-        mask_image = 1-(1-mask_image) * (1-mask_blurred)
-
-        image_pasted=init_image1 * (1-mask_image) + init_image2*mask_image
-        result=image_pasted.astype(init_image1.dtype)
-            
-        return (torch.stack([numpy_to_tensor(np.array(result)).squeeze(0)]),)
+        return (torch.stack(ret), blurred_mask[0],)
 
 
+# Unfortunately, ModelPatcher does not have necessary hooks to patch, so we have to patch code instead
+def modified_forward_timestep_embed(block, x, emb, context=None, transformer_options={}, 
+                           output_shape=None, time_context=None, 
+                           num_video_frames=None, image_only_indicator=None):
+
+    if 'model_patch' not in transformer_options or transformer_options['block'] not in transformer_options['model_patch']:
+        return comfy.ldm.modules.diffusionmodules.openaimodel.original_forward_timestep_embed(block, x, emb, context, 
+                                                                                              transformer_options,
+                                                                                              output_shape, time_context, 
+                                                                                              num_video_frames, image_only_indicator)
+        
+    block_patch = transformer_options['model_patch'][transformer_options['block']]
+
+    for i, layer in enumerate(block):
+
+        if (i, 'before') in block_patch:
+            x = block_patch[(i, 'before')](x, emb, context, (transformer_options['block'], i, 'before'), transformer_options)
+
+        if isinstance(layer, comfy.ldm.modules.diffusionmodules.openaimodel.VideoResBlock):
+            x = layer(x, emb, num_video_frames, image_only_indicator)
+        elif isinstance(layer, comfy.ldm.modules.diffusionmodules.openaimodel.TimestepBlock):
+            x = layer(x, emb)
+        elif isinstance(layer, comfy.ldm.modules.attention.SpatialVideoTransformer):
+            x = layer(x, context, time_context, num_video_frames, image_only_indicator, transformer_options)
+            if "transformer_index" in transformer_options:
+                transformer_options["transformer_index"] += 1
+        elif isinstance(layer, comfy.ldm.modules.attention.SpatialTransformer):
+            x = layer(x, context, transformer_options)
+            if "transformer_index" in transformer_options:
+                transformer_options["transformer_index"] += 1
+        elif isinstance(layer, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample):
+            x = layer(x, output_shape=output_shape)
+        else:
+            x = layer(x)
+
+        if (i, 'after') in block_patch:
+            x = block_patch[(i, 'after')](x, emb, context, (transformer_options['block'], i, 'after'), transformer_options)
+        
+    return x
+
+# Model needs current step number at inference stepю. It is possible to write a custom KSampler but we'd like to use ComfyUI's one.
+def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
+                             disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+    latent_image = latent["samples"]
+    if disable_noise:
+        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
+    else:
+        batch_inds = latent["batch_index"] if "batch_index" in latent else None
+        noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
+
+    noise_mask = None
+    if "noise_mask" in latent:
+        noise_mask = latent["noise_mask"]
+
+    #######################################################################################
+    #
+    latent_preview_callback = latent_preview.prepare_callback(model, steps)
+
+    to = add_model_patch_option(model)
+    to['model_patch']['step'] = 0
+    to['model_patch']['total_steps'] = steps
+
+    def callback(step, x0, x, total_steps):
+        to['model_patch']['step'] = step + 1
+        latent_preview_callback(steps, x0, x, total_steps)
+    #
+    #######################################################################################
+    
+    disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+    samples = comfy.sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+                                  denoise=denoise, disable_noise=disable_noise, start_step=start_step, last_step=last_step,
+                                  force_full_denoise=force_full_denoise, noise_mask=noise_mask, callback=callback, 
+                                  disable_pbar=disable_pbar, seed=seed)
+    out = latent.copy()
+    out["samples"] = samples
+    return (out, )
+
+def add_model_patch_option(model):
+    if 'transformer_options' not in model.model_options:
+        model.model_options['transformer_options'] = {}
+    to = model.model_options['transformer_options']
+    if "model_patch" not in to:
+        to["model_patch"] = {}
+    return to
+
+def add_model_patch(model, patch, block, key, replace=True):
+    to = add_model_patch_option(model)
+    if block not in to["model_patch"]:
+        to["model_patch"][block] = {}
+    if key not in to["model_patch"][block]:
+        to["model_patch"][block][key] = []
+
+    if replace:
+        to["model_patch"][block][key] = patch
+    else:
+        to["model_patch"][block][key].append(patch)
+
+def add_brushnet_patch(model, brushnet, conditioning_latents, controls):
+    to = add_model_patch_option(model)
+    to['model_patch']['brushnet_model'] = brushnet
+    to['model_patch']['brushnet_latents'] = conditioning_latents
+    to['model_patch']['brushnet_controls'] = controls
+    to['model_patch']['input_samples'] = []
+    to['model_patch']['middle_sample'] = 0
+    to['model_patch']['output_samples'] = []
+
+def brushnet_inference(x, emb, context, loc, transformer_options):
+    # x : sample
+    # emb : time embedding
+    # context[0] == neg_cond[0][0][0]
+    # context[1] == pos_cond[0][0][0]
+    # loc = (('input'|'middle'|'output', i), j, 'before'|'after')
+
+    if 'model_patch' not in transformer_options:
+        print('BrushNet inference: there is no model_patch in transformer_options')
+        return x
+    mp = transformer_options['model_patch']
+    brushnet = mp['brushnet_model']
+    if isinstance(brushnet, BrushNetModel):
+        conditioning_latents = mp['brushnet_latents']
+        step = mp['step']
+        total_steps = mp['total_steps']
+        brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
+        brushnet_keep = []
+        for i in range(total_steps):
+            keeps = [
+                1.0 - float(i / total_steps < s or (i + 1) / total_steps > e)
+                for s, e in zip([control_guidance_start], [control_guidance_end])
+            ]
+            brushnet_keep.append(keeps[0])
+        cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
+
+        down_samples, mid_sample, up_samples = brushnet(x,
+                                                        encoder_hidden_states=context[1],
+                                                        brushnet_cond=conditioning_latents,
+                                                        time_emb=emb,
+                                                        conditioning_scale=cond_scale,
+                                                        guess_mode=False,
+                                                        return_dict=False,)
+        transformer_options['model_patch']['input_samples'] = down_samples
+        transformer_options['model_patch']['middle_sample'] = mid_sample
+        transformer_options['model_patch']['output_samples'] = up_samples
+    else:
+        print('BrushNet model is not a BrushNetModel class')
+        
+    return x
+
+def apply_brushnet(x, emb, context, loc, transformer_options):
+    if loc[0][0] == 'input':
+        if len(transformer_options['model_patch']['input_samples']) > 0:
+            return x + transformer_options['model_patch']['input_samples'].pop(0)
+        else:
+            print('BrushNet: something is not right, input samples are empty', loc)
+            return x
+    elif loc[0][0] == 'middle':
+        return x + transformer_options['model_patch']['middle_sample']
+    else:
+        if len(transformer_options['model_patch']['output_samples']) > 0:
+            return x + transformer_options['model_patch']['output_samples'].pop(0)
+        else:
+            print('BrushNet: something is not right, output samples are empty', loc)
+            return x
 
 def image_from_tensor(t: torch.Tensor) -> np.ndarray:
     image_np = t.numpy() 
@@ -291,34 +488,3 @@ def numpy_to_tensor(array: np.ndarray) -> torch.Tensor:
     """Convert a numpy array to a tensor and scale its values from 0-255 to 0-1."""
     array = array.astype(np.float32) / 255.0
     return torch.from_numpy(array)[None,]
-
-def create_unet(original_config, checkpoint, torch_dtype):
-    num_in_channels = 4
-    image_size = 512
-    
-    unet_config = create_unet_diffusers_config(original_config, image_size=image_size)
-    unet_config["in_channels"] = num_in_channels
-    diffusers_format_unet_checkpoint = convert_ldm_unet_checkpoint(checkpoint, unet_config, extract_ema=False)
-    
-    ctx = init_empty_weights if is_accelerate_available else nullcontext
-
-    with ctx():
-        unet = UNet2DConditionModel(**unet_config)
-
-    if is_accelerate_available:
-        unexpected_keys = load_model_dict_into_meta(unet, diffusers_format_unet_checkpoint, dtype=torch_dtype)
-        if unet._keys_to_ignore_on_load_unexpected is not None:
-            for pat in unet._keys_to_ignore_on_load_unexpected:
-                unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
-
-        if len(unexpected_keys) > 0:
-            print(
-                f"Some weights of the model checkpoint were not used when initializing {unet.__name__}: \n {[', '.join(unexpected_keys)]}"
-            )
-    else:
-        unet.load_state_dict(diffusers_format_unet_checkpoint)
-
-    if torch_dtype is not None:
-        unet = unet.to(torch_dtype)
-
-    return {"unet": unet}
