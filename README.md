@@ -64,6 +64,14 @@ You can see blurred and broken text after inpainting in the first image and how 
 
 </details>
 
+<details>
+  <summary>ControlNet</summary>
+
+[json file](example/BrushNet_with_CN.json)
+
+![example workflow](example/BrushNet_with_CN.png?raw=true)
+
+</details>
 
 
 
