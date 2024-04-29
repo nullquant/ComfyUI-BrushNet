@@ -306,11 +306,11 @@ class BlendInpaint:
         if kernel % 2 == 0:
             kernel += 1
         transform = T.GaussianBlur(kernel_size=(kernel, kernel), sigma=(sigma, sigma))
-        blurred_mask = transform(mask[None,None,:,:])
+        blurred_mask = transform(mask[None,None,:,:]).to(original.device).to(original.dtype)
 
         ret = []
         for result in inpaint:
-            ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result * blurred_mask[0][0][:,:,None])
+            ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result.to(original.device) * blurred_mask[0][0][:,:,None])
 
         return (torch.stack(ret), blurred_mask[0],)
 
