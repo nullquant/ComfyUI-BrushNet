@@ -36,6 +36,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 current_directory = os.path.dirname(os.path.abspath(__file__))
 original_config_file = os.path.join(current_directory, 'brushnet', 'v1-inference.yaml')
 brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
+brushnet_xl_config_file = os.path.join(current_directory, 'brushnet', 'brushnet_xl.json')
 torch_dtype = torch.float16
 
 class BrushNetLoader:
@@ -57,8 +58,23 @@ class BrushNetLoader:
     def brushnet_loading(self, brushnet):
         brushnet_file = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
 
+        is_SDXL = False
+        sd = comfy.utils.load_torch_file(brushnet_file)
+        brushnet_down_block, brushnet_mid_block, brushnet_up_block = brushnet_blocks(sd)
+        if brushnet_down_block == 24 and brushnet_mid_block == 2 and brushnet_up_block == 30:
+            print('Loading SD1.5 BrushNet model')
+            is_SDXL = False
+        elif brushnet_down_block == 18 and brushnet_mid_block == 2 and brushnet_up_block == 22:
+            print('Loading SDXL BrushNet model')
+            is_SDXL = True
+        else:
+            raise Exception("Unknown BrushNet model")
+
         with init_empty_weights():
-            brushnet_config = BrushNetModel.load_config(brushnet_config_file)
+            if is_SDXL:
+                brushnet_config = BrushNetModel.load_config(brushnet_xl_config_file)
+            else:
+                brushnet_config = BrushNetModel.load_config(brushnet_config_file)
             brushnet_model = BrushNetModel.from_config(brushnet_config)
 
         brushnet_model = load_checkpoint_and_dispatch(
@@ -72,9 +88,9 @@ class BrushNetLoader:
             force_hooks=False,
         )
 
-        print("BrushNet model is loaded")
+        print("BrushNet model is loaded, SDXL? ", is_SDXL)
 
-        return (brushnet_model,)
+        return ({"brushnet": brushnet_model, "SDXL": is_SDXL},)
 
     
 def inpaint_safetensors():
@@ -97,6 +113,19 @@ def inpaint_safetensors():
                 y = folder
         names.append(y)     
     return names
+
+def brushnet_blocks(sd):
+    brushnet_down_block = 0
+    brushnet_mid_block = 0
+    brushnet_up_block = 0
+    for key in sd:
+        if 'brushnet_down_block' in key:
+            brushnet_down_block += 1
+        if 'brushnet_mid_block' in key:
+            brushnet_mid_block += 1        
+        if 'brushnet_up_block' in key:
+            brushnet_up_block += 1
+    return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, )
 
 
 class BrushNet:
@@ -128,6 +157,22 @@ class BrushNet:
         #    image = image[0]
         #if len(mask.shape) > 2:
         #    mask = mask[0]
+
+        is_SDXL = False
+        if isinstance(model.model.model_config, comfy.supported_models.SD15):
+            print('Base model type: SD1.5')
+            is_SDXL = False
+            if brushnet["SDXL"]:
+                raise Exception("Base model is SD15, but BrushNet is SDXL type")    
+        elif isinstance(model.model.model_config, comfy.supported_models.SDXL):
+            print('Base model type: SDXL')
+            is_SDXL = True
+            if not brushnet["SDXL"]:
+                raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
+            raise Exception("SDXL support is not implemented yet")
+        else:
+            print('Base model type: ', type(model.model.model_config))
+            raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
 
         masked_image = image * (1.0 - mask[:,:,:,None])
         masked_image = masked_image.permute(0, 3, 1, 2)
@@ -172,7 +217,7 @@ class BrushNet:
                 )
         interpolated_mask = interpolated_mask.to(device=diff_vae.device, dtype=diff_vae.dtype)
 
-        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet.device)
+        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet["brushnet"].device)
 
         del diff_vae        
 
@@ -193,7 +238,7 @@ class BrushNet:
 
         # apply patch to model
 
-        add_brushnet_patch(model, brushnet, conditioning_latents, 
+        add_brushnet_patch(model, brushnet["brushnet"], conditioning_latents, 
                            [brushnet_conditioning_scale, control_guidance_start, control_guidance_end])
         
         add_model_patch(model, brushnet_inference, ('input', 0), (0, 'before'))
@@ -206,73 +251,6 @@ class BrushNet:
             add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
 
         return (model,)
-
-
-class BrushNetInpaint:
-
-    @classmethod
-    def INPUT_TYPES(s):
-        return {"required":
-                    {    
-                        "BRPL": ("BRPL", ),
-                        "image": ("IMAGE",),
-                        "mask": ("MASK",),
-                        "positive": ("CONDITIONING", ),
-                        "negative": ("CONDITIONING", ),
-                        "seed": ("INT", {"default": 0, "min": 0, "max": 0xffffffffffffffff}),
-                        "steps": ("INT", {"default": 50, "min": 1, "max": 10000}),
-                        "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
-                     },
-                }
-
-    CATEGORY = "inpaint"
-    RETURN_TYPES = ("IMAGE",)
-    RETURN_NAMES = ("image",)
-
-    FUNCTION = "brushnet_inpaint"
-
-    def brushnet_inpaint(self, BRPL, image: torch.Tensor, mask: torch.Tensor, positive, negative, seed: int, 
-                         steps: int, scale: float) -> Tuple[torch.Tensor]:
-
-        print("Working on image")
-
-        # no batches
-        if len(image.shape) > 3:
-            image = image[0]
-        if len(mask.shape) > 2:
-            mask = mask[0]
-
-        init_image = image_from_tensor(image)
-        mask_image = image_from_tensor(mask)
-
-        mask_image = 1.*(mask_image>250)[:,:,np.newaxis]
-        init_image = init_image * (1-mask_image)
-
-        init_image = Image.fromarray(init_image.astype(np.uint8)).convert("RGB")
-        mask_image = Image.fromarray(mask_image.astype(np.uint8).repeat(3,-1)*255).convert("RGB")
-
-        print("Inference started")
-
-        pos_embeds = positive
-        while isinstance(pos_embeds, list):
-            pos_embeds = pos_embeds[0]
-            
-        neg_embeds = negative
-        while isinstance(neg_embeds, list):
-            neg_embeds = neg_embeds[0]
-
-        generator = torch.Generator("cuda").manual_seed(seed)
-        result = BRPL(
-            image=init_image, 
-            mask=mask_image, 
-            prompt_embeds=pos_embeds,
-            negative_prompt_embeds=neg_embeds,
-            num_inference_steps=steps, 
-            generator=generator,
-            brushnet_conditioning_scale=scale
-        ).images[0]
-
-        return (torch.stack([numpy_to_tensor(np.array(result)).squeeze(0)]),)
 
 
 class BlendInpaint:
@@ -429,8 +407,8 @@ def brushnet_inference(x, emb, context, loc, transformer_options):
     # loc = (('input'|'middle'|'output', i), j, 'before'|'after')
 
     if 'model_patch' not in transformer_options:
-        print('BrushNet inference: there is no model_patch in transformer_options')
-        return x
+        raise Exception('BrushNet inference: there is no model_patch in transformer_options')
+    
     mp = transformer_options['model_patch']
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel):
@@ -458,7 +436,7 @@ def brushnet_inference(x, emb, context, loc, transformer_options):
         transformer_options['model_patch']['middle_sample'] = mid_sample
         transformer_options['model_patch']['output_samples'] = up_samples
     else:
-        print('BrushNet model is not a BrushNetModel class')
+        raise Exception('BrushNet model is not a BrushNetModel class')
         
     return x
 
@@ -467,16 +445,15 @@ def apply_brushnet(x, emb, context, loc, transformer_options):
         if len(transformer_options['model_patch']['input_samples']) > 0:
             return x + transformer_options['model_patch']['input_samples'].pop(0)
         else:
-            print('BrushNet: something is not right, input samples are empty', loc)
-            return x
+            raise Exception('BrushNet: something is not right, input samples are empty, ' + str(loc))
+        
     elif loc[0][0] == 'middle':
         return x + transformer_options['model_patch']['middle_sample']
     else:
         if len(transformer_options['model_patch']['output_samples']) > 0:
             return x + transformer_options['model_patch']['output_samples'].pop(0)
         else:
-            print('BrushNet: something is not right, output samples are empty', loc)
-            return x
+            raise Exception('BrushNet: something is not right, output samples are empty, ' + str(loc))
 
 def image_from_tensor(t: torch.Tensor) -> np.ndarray:
     image_np = t.numpy() 
