@@ -1,11 +1,7 @@
 import torch
 import torchvision.transforms as T
-import cv2
-import numpy as np
-from PIL import Image
 
 import os
-import yaml
 import folder_paths
 
 import sys
@@ -16,14 +12,16 @@ import comfy
 import nodes
 import latent_preview
 
-import importlib
-from contextlib import nullcontext
-is_accelerate_available = importlib.util.find_spec("accelerate") is not None
-if is_accelerate_available:
-    from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
-from diffusers.loaders.single_file_utils import create_diffusers_vae_model_from_ldm
-from diffusers.image_processor import VaeImageProcessor
+#import numpy as np
+#import cv2
+#from PIL import Image
+#import yaml
+#import importlib
+#from contextlib import nullcontext
+#from diffusers.loaders.single_file_utils import create_diffusers_vae_model_from_ldm
+#from diffusers.image_processor import VaeImageProcessor
 
 from .brushnet.brushnet import BrushNetModel
 
@@ -34,10 +32,13 @@ warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
-original_config_file = os.path.join(current_directory, 'brushnet', 'v1-inference.yaml')
+#original_config_file = os.path.join(current_directory, 'brushnet', 'v1-inference.yaml')
 brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
 brushnet_xl_config_file = os.path.join(current_directory, 'brushnet', 'brushnet_xl.json')
+
 torch_dtype = torch.float16
+sd15_scaling_factor = 0.18215
+sdxl_scaling_factor = 0.13025
 
 class BrushNetLoader:
 
@@ -61,6 +62,7 @@ class BrushNetLoader:
         is_SDXL = False
         sd = comfy.utils.load_torch_file(brushnet_file)
         brushnet_down_block, brushnet_mid_block, brushnet_up_block = brushnet_blocks(sd)
+        del sd
         if brushnet_down_block == 24 and brushnet_mid_block == 2 and brushnet_up_block == 30:
             print('Loading SD1.5 BrushNet model')
             is_SDXL = False
@@ -88,7 +90,7 @@ class BrushNetLoader:
             force_hooks=False,
         )
 
-        print("BrushNet model is loaded, SDXL? ", is_SDXL)
+        print("BrushNet model is loaded, SDXL:", is_SDXL)
 
         return ({"brushnet": brushnet_model, "SDXL": is_SDXL},)
 
@@ -140,6 +142,8 @@ class BrushNet:
                         "mask": ("MASK",),
                         "brushnet": ("BRMODEL", ),
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
+                        "start_at": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0}),
+                        "end_at": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
                      },
                 }
 
@@ -149,14 +153,7 @@ class BrushNet:
 
     FUNCTION = "model_update"
 
-    def model_update(self, model, vae, image, mask, brushnet, scale):
-
-        # prepare image and mask
-        # no batches yet
-        #if len(image.shape) > 3:
-        #    image = image[0]
-        #if len(mask.shape) > 2:
-        #    mask = mask[0]
+    def model_update(self, model, vae, image, mask, brushnet, scale, start_at, end_at):
 
         is_SDXL = False
         if isinstance(model.model.model_config, comfy.supported_models.SD15):
@@ -173,39 +170,26 @@ class BrushNet:
         else:
             print('Base model type: ', type(model.model.model_config))
             raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
+        
+        # prepare image and mask
+        # no batches for original image and mask
+
+        if image.shape[0] > 1:
+            image = image[0][None,:,:,:]   
+        if mask.shape[0] > 1:
+            mask = mask[0][None,:,:]  
 
         masked_image = image * (1.0 - mask[:,:,:,None])
-        masked_image = masked_image.permute(0, 3, 1, 2)
 
-        vae_scale_factor = 8 # 2 ** (len(diff_vae.config.block_out_channels) - 1)
-        image_processor = VaeImageProcessor(vae_scale_factor=vae_scale_factor, do_convert_rgb=True)
+        if hasattr(model.model.model_config, 'latent_format') and hasattr(model.model.model_config.latent_format, 'scale_factor'):
+            scaling_factor = model.model.model_config.latent_format.scale_factor
+        elif is_SDXL:
+            scaling_factor = sdxl_scaling_factor
+        else:
+            scaling_factor = sd15_scaling_factor
 
-        width = masked_image.shape[2]
-        height = masked_image.shape[3]
-
-        # create diffusers VAE
-
-        with open(original_config_file, "r") as fp:
-            original_config_data = fp.read()
-        original_config = yaml.safe_load(original_config_data)
-
-        diff_vae = create_diffusers_vae_model_from_ldm(
-            "StableDiffusionBrushNetPipeline",
-            original_config,
-            vae.get_sd(),
-            image_size=None,
-            scaling_factor=None,
-            torch_dtype=None,
-            model_type=None,
-        )['vae']
-
-        _ = diff_vae.to('cuda').to(dtype=torch_dtype)
-
-        processed_image = image_processor.preprocess(masked_image, height=height, width=width).to(dtype=torch.float32)
-        processed_image = torch.cat([processed_image] * 2)
-        processed_image = processed_image.to(device=diff_vae.device, dtype=diff_vae.dtype)
-
-        image_latents = diff_vae.encode(processed_image).latent_dist.sample() * diff_vae.config.scaling_factor
+        processed_image = torch.cat([masked_image] * 2).to(vae.device)
+        image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
 
         processed_mask = torch.cat([1. - mask[None,:,:,:]] * 2)
         interpolated_mask = torch.nn.functional.interpolate(
@@ -215,17 +199,13 @@ class BrushNet:
                         image_latents.shape[-1]
                     )
                 )
-        interpolated_mask = interpolated_mask.to(device=diff_vae.device, dtype=diff_vae.dtype)
+        interpolated_mask = interpolated_mask.to(image_latents.device)
 
-        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet["brushnet"].device)
+        print('BrushNet: image latents shape =', image_latents.shape, 'interpolated mask shape =', interpolated_mask.shape)
 
-        del diff_vae        
+        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
 
         # apply patches to code
-
-        brushnet_conditioning_scale = scale
-        control_guidance_start = 0.0
-        control_guidance_end = 1.0
 
         if not hasattr(nodes, 'original_common_ksampler'):
             nodes.original_common_ksampler = nodes.common_ksampler
@@ -237,6 +217,10 @@ class BrushNet:
             comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed = modified_forward_timestep_embed
 
         # apply patch to model
+
+        brushnet_conditioning_scale = scale
+        control_guidance_start = start_at
+        control_guidance_end = end_at
 
         add_brushnet_patch(model, brushnet["brushnet"], conditioning_latents, 
                            [brushnet_conditioning_scale, control_guidance_start, control_guidance_end])
@@ -455,13 +439,13 @@ def apply_brushnet(x, emb, context, loc, transformer_options):
         else:
             raise Exception('BrushNet: something is not right, output samples are empty, ' + str(loc))
 
-def image_from_tensor(t: torch.Tensor) -> np.ndarray:
-    image_np = t.numpy() 
-    # Convert the numpy array back to the original range (0-255) and data type (uint8)
-    image_np = (image_np * 255).astype(np.uint8)
-    return image_np
-
-def numpy_to_tensor(array: np.ndarray) -> torch.Tensor:
-    """Convert a numpy array to a tensor and scale its values from 0-255 to 0-1."""
-    array = array.astype(np.float32) / 255.0
-    return torch.from_numpy(array)[None,]
+#def image_from_tensor(t: torch.Tensor) -> np.ndarray:
+#    image_np = t.numpy() 
+#    # Convert the numpy array back to the original range (0-255) and data type (uint8)
+#    image_np = (image_np * 255).astype(np.uint8)
+#    return image_np
+#
+#def numpy_to_tensor(array: np.ndarray) -> torch.Tensor:
+#    """Convert a numpy array to a tensor and scale its values from 0-255 to 0-1."""
+#    array = array.astype(np.float32) / 255.0
+#    return torch.from_numpy(array)[None,]
