@@ -83,7 +83,7 @@ Unfortunately, due to the nature of ComfyUI code some nodes are not compatible w
 List of known uncompartible nodes.
 
 - [WASasquatch's FreeU_Advanced](https://github.com/WASasquatch/FreeU_Advanced/tree/main)
-- [blepping's jank HiDiffusion][https://github.com/blepping/comfyui_jankhidiffusion]
+- [blepping's jank HiDiffusion](https://github.com/blepping/comfyui_jankhidiffusion)
 
 I will think how to avoid it.
 
