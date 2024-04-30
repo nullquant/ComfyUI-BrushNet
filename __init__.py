@@ -1,4 +1,4 @@
-from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint
+from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint#, TestNode
 """
 @author: nullquant
 @title: BrushNet
@@ -12,6 +12,7 @@ NODE_CLASS_MAPPINGS = {
     "BrushNetLoader": BrushNetLoader,
     "BrushNet": BrushNet,
     "BlendInpaint": BlendInpaint,
+#    "TestNode": TestNode,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -19,4 +20,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "BrushNetLoader": "BrushNet Loader",
     "BrushNet": "BrushNet",
     "BlendInpaint": "Blend Inpaint",
+#    "TestNode": "Test Node",
 }

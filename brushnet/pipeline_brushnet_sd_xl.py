@@ -7,6 +7,7 @@ import numpy as np
 import PIL.Image
 import torch
 import torch.nn.functional as F
+
 from transformers import (
     CLIPImageProcessor,
     CLIPTextModel,
@@ -17,23 +18,25 @@ from transformers import (
 
 from diffusers.utils.import_utils import is_invisible_watermark_available
 
-from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import (
+from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
+from diffusers.loaders import (
     FromSingleFileMixin,
     IPAdapterMixin,
     StableDiffusionXLLoraLoaderMixin,
     TextualInversionLoaderMixin,
 )
-from ...models import AutoencoderKL, BrushNetModel, ImageProjection, UNet2DConditionModel
-from ...models.attention_processor import (
+from diffusers.models import AutoencoderKL, ImageProjection
+from .brushnet import BrushNetModel
+from .unet_2d_condition import UNet2DConditionModel
+from diffusers.models.attention_processor import (
     AttnProcessor2_0,
     LoRAAttnProcessor2_0,
     LoRAXFormersAttnProcessor,
     XFormersAttnProcessor,
 )
-from ...models.lora import adjust_lora_scale_text_encoder
-from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
+from diffusers.models.lora import adjust_lora_scale_text_encoder
+from diffusers.schedulers import KarrasDiffusionSchedulers
+from diffusers.utils import (
     USE_PEFT_BACKEND,
     deprecate,
     logging,
@@ -41,13 +44,14 @@ from ...utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from ...utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
-from ..stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
+from diffusers.utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline, StableDiffusionMixin
+from diffusers.pipelines.stable_diffusion_xl.pipeline_output import StableDiffusionXLPipelineOutput
 
 
 if is_invisible_watermark_available():
-    from ..stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+    from diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
+
 
 # from .multibrushnet import MultiBrushNetModel
 
@@ -1428,10 +1432,10 @@ class StableDiffusionXLBrushNetPipeline(
                     cond_scale = brushnet_cond_scale * brushnet_keep[i]
 
                 down_block_res_samples, mid_block_res_sample, up_block_res_samples = self.brushnet(
-                    control_model_input,
-                    t,
+                    sample=control_model_input,
                     encoder_hidden_states=brushnet_prompt_embeds,
                     brushnet_cond=conditioning_latents,
+                    timestep=t,
                     conditioning_scale=cond_scale,
                     guess_mode=guess_mode,
                     added_cond_kwargs=brushnet_added_cond_kwargs,

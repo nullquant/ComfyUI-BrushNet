@@ -79,6 +79,8 @@ class BrushNetLoader:
                 brushnet_config = BrushNetModel.load_config(brushnet_config_file)
             brushnet_model = BrushNetModel.from_config(brushnet_config)
 
+        print("BrushNet file", brushnet_file)
+
         brushnet_model = load_checkpoint_and_dispatch(
             brushnet_model,
             brushnet_file,
@@ -99,7 +101,7 @@ def inpaint_safetensors():
     inpaint_path = os.path.join(folder_paths.models_dir, 'inpaint')
     brushnet_path = os.path.join(inpaint_path, 'brushnet')
     abs_list = []
-    for x in os.walk(brushnet_path):
+    for x in os.walk(inpaint_path):
         for name in x[2]:
             if 'safetensors' in name:
                 abs_list.append(os.path.join(x[0], name))
@@ -148,8 +150,8 @@ class BrushNet:
                 }
 
     CATEGORY = "inpaint"
-    RETURN_TYPES = ("MODEL",)
-    RETURN_NAMES = ("model",)
+    RETURN_TYPES = ("MODEL","LATENT",)
+    RETURN_NAMES = ("model","latent",)
 
     FUNCTION = "model_update"
 
@@ -166,7 +168,7 @@ class BrushNet:
             is_SDXL = True
             if not brushnet["SDXL"]:
                 raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
-            raise Exception("SDXL support is not implemented yet")
+            raise Exception("SDXL is not implemented yet")
         else:
             print('Base model type: ', type(model.model.model_config))
             raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
@@ -178,6 +180,14 @@ class BrushNet:
             image = image[0][None,:,:,:]   
         if mask.shape[0] > 1:
             mask = mask[0][None,:,:]  
+
+        width = image.shape[1]
+        height = image.shape[2]
+
+        print("BrushNet image, width", width, "height", height)
+
+        if mask.shape[1] != width or mask.shape[2] != height:
+            raise Exception("Image and mask should be the same size")
 
         masked_image = image * (1.0 - mask[:,:,:,None])
 
@@ -225,16 +235,28 @@ class BrushNet:
         add_brushnet_patch(model, brushnet["brushnet"], conditioning_latents, 
                            [brushnet_conditioning_scale, control_guidance_start, control_guidance_end])
         
-        add_model_patch(model, brushnet_inference, ('input', 0), (0, 'before'))
-        input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
-        for i, j in input_blocks:
-            add_model_patch(model, apply_brushnet, ('input', i), (j, 'after'))
-        add_model_patch(model, apply_brushnet, ('middle', 0), (2, 'after'))
-        output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
-        for i, j in output_blocks:
-            add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
+        if is_SDXL:
+            add_model_patch(model, brushnet_inference, ('input', 0), (0, 'before'))
+            input_blocks = [[0,0],[1,0],[2,0],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1]]
+            for i, j in input_blocks:
+                add_model_patch(model, apply_brushnet, ('input', i), (j, 'after'))
+            add_model_patch(model, apply_brushnet, ('middle', 0), (2, 'after'))
+            output_blocks = [[0,1],[1,1],[2,1],[2,2],[3,1],[4,1],[5,1],[5,2],[6,0],[7,0],[8,0]]
+            for i, j in output_blocks:
+                add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
+        else:
+            add_model_patch(model, brushnet_inference, ('input', 0), (0, 'before'))
+            input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
+            for i, j in input_blocks:
+                add_model_patch(model, apply_brushnet, ('input', i), (j, 'after'))
+            add_model_patch(model, apply_brushnet, ('middle', 0), (2, 'after'))
+            output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
+            for i, j in output_blocks:
+                add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
 
-        return (model,)
+        latent = torch.zeros([1, 4, height // 8, width // 8], device=brushnet['brushnet'].device)
+
+        return (model, {"samples":latent},)
 
 
 class BlendInpaint:
@@ -275,6 +297,31 @@ class BlendInpaint:
             ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result.to(original.device) * blurred_mask[0][0][:,:,None])
 
         return (torch.stack(ret), blurred_mask[0],)
+
+'''
+import pip
+
+class TestNode:
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required":
+                    {    
+                        "image": ("IMAGE",),
+                     },
+                }
+
+    CATEGORY = "inpaint"
+    RETURN_TYPES = ()
+    RETURN_NAMES = ()
+
+    FUNCTION = "test_node"
+
+    def test_node(self):
+        print('Installed packages')
+        print(pip.utils.get_installed_distributions())
+'''
+
 
 
 # Unfortunately, ModelPatcher does not have necessary hooks to patch, so we have to patch code instead
