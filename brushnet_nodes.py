@@ -254,7 +254,7 @@ class BrushNet:
             for i, j in output_blocks:
                 add_model_patch(model, apply_brushnet, ('output', i), (j, 'after'))
 
-        latent = torch.zeros([1, 4, height // 8, width // 8], device=brushnet['brushnet'].device)
+        latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
 
         return (model, {"samples":latent},)
 
@@ -324,7 +324,7 @@ class TestNode:
 
 
 
-# Unfortunately, ModelPatcher does not have necessary hooks to patch, so we have to patch code instead
+# Unfortunately, ModelPatcher does not have necessary hooks to patch, so we have to patch the code instead
 def modified_forward_timestep_embed(block, x, emb, context=None, transformer_options={}, 
                            output_shape=None, time_context=None, 
                            num_video_frames=None, image_only_indicator=None):

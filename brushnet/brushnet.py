@@ -818,7 +818,7 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         # 2. pre-process
 
         if sample.shape[2] != brushnet_cond.shape[2] or sample.shape[3] != brushnet_cond.shape[3]:
-            raise Exception("Image and latent should be the same size")
+            raise Exception("Image "+ str(brushnet_cond.shape) +" and latent " + str(sample.shape) + " should be the same size")
 
         brushnet_cond=torch.concat([sample,brushnet_cond],1)
         sample = self.conv_in_condition(brushnet_cond)

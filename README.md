@@ -74,6 +74,13 @@ You can see blurred and broken text after inpainting in the first image and how 
 </details>
 
 
+## Notes
+
+Unfortunately, due to the nature of ComfyUI code some nodes are not compatible with these, since we are trying to patch the same ComfyUI's functions. 
+
+List of known uncompartible nodes.
+
+- [WASasquatch's FreeU_Advanced](https://github.com/WASasquatch/FreeU_Advanced/tree/main)
 
 
 ## Credits
