@@ -168,7 +168,7 @@ class BrushNet:
             is_SDXL = True
             if not brushnet["SDXL"]:
                 raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
-            #raise Exception("SDXL is not implemented yet")
+            raise Exception("SDXL is not implemented yet")
         else:
             print('Base model type: ', type(model.model.model_config))
             raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
@@ -184,7 +184,7 @@ class BrushNet:
         width = image.shape[2]
         height = image.shape[1]
 
-        print("BrushNet image, width", width, "height", height)
+        print("BrushNet image,", image.shape)
 
         if mask.shape[2] != width or mask.shape[1] != height:
             raise Exception("Image and mask should be the same size")
