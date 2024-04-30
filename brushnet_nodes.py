@@ -168,7 +168,7 @@ class BrushNet:
             is_SDXL = True
             if not brushnet["SDXL"]:
                 raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
-            raise Exception("SDXL is not implemented yet")
+            #raise Exception("SDXL is not implemented yet")
         else:
             print('Base model type: ', type(model.model.model_config))
             raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
@@ -217,11 +217,12 @@ class BrushNet:
 
         # apply patches to code
 
-        if 'BrushNet' not in nodes.common_ksampler.__doc__:
+        if nodes.common_ksampler.__doc__ is None or 'BrushNet' not in nodes.common_ksampler.__doc__:
             nodes.original_common_ksampler = nodes.common_ksampler
             nodes.common_ksampler = modified_common_ksampler
 
-        if 'BrushNet' not in comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed.__doc__:
+        if comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed.__doc__ is None or \
+            'BrushNet' not in comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed.__doc__:
             comfy.ldm.modules.diffusionmodules.openaimodel.original_forward_timestep_embed =  \
             comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed
             comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed = modified_forward_timestep_embed
