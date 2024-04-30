@@ -181,12 +181,12 @@ class BrushNet:
         if mask.shape[0] > 1:
             mask = mask[0][None,:,:]  
 
-        width = image.shape[1]
-        height = image.shape[2]
+        width = image.shape[2]
+        height = image.shape[1]
 
         print("BrushNet image, width", width, "height", height)
 
-        if mask.shape[1] != width or mask.shape[2] != height:
+        if mask.shape[2] != width or mask.shape[1] != height:
             raise Exception("Image and mask should be the same size")
 
         masked_image = image * (1.0 - mask[:,:,:,None])
@@ -217,11 +217,11 @@ class BrushNet:
 
         # apply patches to code
 
-        if not hasattr(nodes, 'original_common_ksampler'):
+        if 'BrushNet' not in nodes.common_ksampler.__doc__:
             nodes.original_common_ksampler = nodes.common_ksampler
             nodes.common_ksampler = modified_common_ksampler
 
-        if not hasattr(comfy.ldm.modules.diffusionmodules.openaimodel, 'original_forward_timestep_embed'):
+        if 'BrushNet' not in comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed.__doc__:
             comfy.ldm.modules.diffusionmodules.openaimodel.original_forward_timestep_embed =  \
             comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed
             comfy.ldm.modules.diffusionmodules.openaimodel.forward_timestep_embed = modified_forward_timestep_embed
@@ -328,6 +328,9 @@ class TestNode:
 def modified_forward_timestep_embed(block, x, emb, context=None, transformer_options={}, 
                            output_shape=None, time_context=None, 
                            num_video_frames=None, image_only_indicator=None):
+    '''
+    Modified by BrushNet nodes
+    '''
 
     if 'model_patch' not in transformer_options or transformer_options['block'] not in transformer_options['model_patch']:
         return comfy.ldm.modules.diffusionmodules.openaimodel.original_forward_timestep_embed(block, x, emb, context, 
@@ -367,6 +370,9 @@ def modified_forward_timestep_embed(block, x, emb, context=None, transformer_opt
 # Model needs current step number at inference stepю. It is possible to write a custom KSampler but we'd like to use ComfyUI's one.
 def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
                              disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+    '''
+    Modified by BrushNet nodes
+    '''
     latent_image = latent["samples"]
     if disable_noise:
         noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")

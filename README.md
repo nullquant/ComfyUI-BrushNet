@@ -35,6 +35,8 @@ Below is an example for the intended workflow. The [json file](example/BrushNet_
 
 ![example workflow](example/BrushNet_basic.png?raw=true)
 
+The latent image can be from BrushNet node or not, but it should be the same size as original image (divided by 8 in latent space).
+
 <details>
   <summary>IPAdapter plus</summary>
   
@@ -81,7 +83,9 @@ Unfortunately, due to the nature of ComfyUI code some nodes are not compatible w
 List of known uncompartible nodes.
 
 - [WASasquatch's FreeU_Advanced](https://github.com/WASasquatch/FreeU_Advanced/tree/main)
+- [blepping's jank HiDiffusion][https://github.com/blepping/comfyui_jankhidiffusion]
 
+I will think how to avoid it.
 
 ## Credits
 
