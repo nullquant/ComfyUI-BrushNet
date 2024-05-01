@@ -12,6 +12,12 @@ Apr 18, 2024. Complete rework, no more custom `diffusers` library. It is possibl
 
 Apr 11, 2024. Initial commit.
 
+## Plans
+
+- [ ] BrushNet SDXL
+- [ ] PowerPaint v2
+- [ ] Compatibility with `ComfyUI-AnimateDiff-Evolved` and similar nodes
+
 ## Installation
 
 Clone the repo into the custom_nodes directory and install the requirements:
@@ -84,6 +90,7 @@ List of known uncompartible nodes.
 
 - [WASasquatch's FreeU_Advanced](https://github.com/WASasquatch/FreeU_Advanced/tree/main)
 - [blepping's jank HiDiffusion](https://github.com/blepping/comfyui_jankhidiffusion)
+- [Kosinkadink's ComfyUI-AnimateDiff-Evolved](https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved)
 
 I will think how to avoid it.
 
