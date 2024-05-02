@@ -14,21 +14,10 @@ import latent_preview
 
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
-#import numpy as np
-#import cv2
-#from PIL import Image
-#import yaml
-#import importlib
-#from contextlib import nullcontext
-#from diffusers.loaders.single_file_utils import create_diffusers_vae_model_from_ldm
-#from diffusers.image_processor import VaeImageProcessor
-
 from .brushnet.brushnet import BrushNetModel
 
 import types
-
 from typing import Tuple
-
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
@@ -293,6 +282,14 @@ class BlendInpaint:
         transform = T.GaussianBlur(kernel_size=(kernel, kernel), sigma=(sigma, sigma))
         blurred_mask = transform(mask[None,None,:,:]).to(original.device).to(original.dtype)
 
+        inpaint = torch.nn.functional.interpolate(
+            inpaint, 
+            size=(
+                original.shape[1], 
+                original.shape[2],
+            )
+        )
+
         ret = []
         for result in inpaint:
             ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result.to(original.device) * blurred_mask[0][0][:,:,None])
@@ -392,9 +389,6 @@ def add_brushnet_patch(model, brushnet, conditioning_latents, controls, prompt_e
     to['model_patch']['brushnet_controls'] = controls
     to['model_patch']['brushnet_prompt'] = prompt_embeds
     to['model_patch']['brushnet_add_embeds'] = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
-    to['model_patch']['input_samples'] = []
-    to['model_patch']['middle_sample'] = 0
-    to['model_patch']['output_samples'] = []
 
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
