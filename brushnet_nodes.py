@@ -360,7 +360,7 @@ def brushnet_inference(x, timesteps, transformer_options):
         return ([], 0, [])
     mp = transformer_options['model_patch']
     if 'brushnet_model' not in mp:
-        print('BrushNet inference: there is no model_patch in transformer_options')
+        print('BrushNet inference: there is no brushnet_model in transformer_options')
         return ([], 0, [])
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel):
