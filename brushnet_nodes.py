@@ -300,15 +300,15 @@ class BlendInpaint:
         blurred_mask = transform(mask[None,None,:,:]).to(original.device).to(original.dtype)
 
         inpaint = torch.nn.functional.interpolate(
-            inpaint, 
+            inpaint.permute(0, 3, 1, 2), 
             size=(
-                original.shape[1], 
-                original.shape[2],
+                original.shape[0], 
+                original.shape[1],
             )
         )
 
         ret = []
-        for result in inpaint:
+        for result in inpaint.permute(0, 2, 3, 1):
             ret.append(original * (1.0 - blurred_mask[0][0][:,:,None]) + result.to(original.device) * blurred_mask[0][0][:,:,None])
 
         return (torch.stack(ret), blurred_mask[0],)
