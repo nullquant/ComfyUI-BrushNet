@@ -18,7 +18,7 @@ Apr 11, 2024. Initial commit.
 
 - [x] BrushNet SDXL
 - [ ] PowerPaint v2
-- [ ] Compatibility with `ComfyUI-AnimateDiff-Evolved` and similar nodes
+- [ ] Compatibility with `jank HiDiffusion` and similar nodes
 
 ## Installation
 
