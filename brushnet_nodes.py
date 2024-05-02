@@ -193,10 +193,12 @@ class BrushNet:
         # prepare conditioning latents
 
         with torch.no_grad():
-            processed_image = torch.cat([masked_image] * 2).to(vae.device)
+            processed_image = masked_image.to(vae.device)
+            processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
             image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
+            image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
 
-            processed_mask = torch.cat([1. - mask[None,:,:,:]] * 2)
+            processed_mask = 1. - mask[None,:,:,:]
             interpolated_mask = torch.nn.functional.interpolate(
                         processed_mask, 
                         size=(
@@ -205,9 +207,21 @@ class BrushNet:
                         )
                     )
             interpolated_mask = interpolated_mask.to(image_latents.device)
-            conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
 
-        print('BrushNet CL: image_latents shape =', image_latents.shape, 'interpolated_mask shape =', interpolated_mask.shape)
+            processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
+            interpolated_mask2 = torch.nn.functional.interpolate(
+                        processed_mask2, 
+                        size=(
+                            image_latents2.shape[-2], 
+                            image_latents2.shape[-1]
+                        )
+                    )
+            interpolated_mask2 = interpolated_mask2.to(image_latents2.device)
+
+            conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
+            conditioning_latents2 = torch.concat([image_latents2, interpolated_mask2], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
+
+        print('BrushNet CL: image_latents shape =', image_latents2.shape, 'interpolated_mask shape =', interpolated_mask2.shape)
 
         # prepare embeddings
 
@@ -220,9 +234,9 @@ class BrushNet:
         add_time_ids = torch.FloatTensor([[height, width, 0., 0., height, width]]).to(brushnet['brushnet'].device)
         negative_add_time_ids = add_time_ids
 
-        prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
-        add_text_embeds = torch.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
-        add_time_ids = torch.cat([negative_add_time_ids, add_time_ids], dim=0)
+        prompt_embeds2 = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
+        add_text_embeds2 = torch.cat([negative_pooled_prompt_embeds, add_text_embeds], dim=0)
+        add_time_ids2 = torch.cat([negative_add_time_ids, add_time_ids], dim=0)
 
         # apply patch to code
 
@@ -240,8 +254,10 @@ class BrushNet:
         add_brushnet_patch(cloned, 
                            brushnet['brushnet'],
                            conditioning_latents, 
+                           conditioning_latents2, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
-                           prompt_embeds, add_text_embeds, add_time_ids)
+                           prompt_embeds, add_text_embeds, add_time_ids,
+                           prompt_embeds2, add_text_embeds2, add_time_ids2)
 
         latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
         #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
@@ -345,9 +361,12 @@ def brushnet_inference(x, timesteps, transformer_options):
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel):
         conditioning_latents = mp['brushnet_latents']
+        conditioning_latents2 = mp['brushnet_latents2']
         brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
         prompt_embeds = mp['brushnet_prompt']
+        prompt_embeds2 = mp['brushnet_prompt2']
         added_cond_kwargs = mp['brushnet_add_embeds']
+        added_cond_kwargs2 = mp['brushnet_add_embeds2']
         step = mp['step']
         total_steps = mp['total_steps']
         
@@ -361,15 +380,26 @@ def brushnet_inference(x, timesteps, transformer_options):
 
         cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
 
-        return brushnet(x,
-                        encoder_hidden_states=prompt_embeds,
-                        brushnet_cond=conditioning_latents,
-                        timestep = timesteps,
-                        conditioning_scale=cond_scale,
-                        guess_mode=False,
-                        added_cond_kwargs=added_cond_kwargs,
-                        return_dict=False,
-                       )
+        if x.shape[0] == 2:
+            return brushnet(x,
+                            encoder_hidden_states=prompt_embeds2,
+                            brushnet_cond=conditioning_latents2,
+                            timestep = timesteps,
+                            conditioning_scale=cond_scale,
+                            guess_mode=False,
+                            added_cond_kwargs=added_cond_kwargs2,
+                            return_dict=False,
+                        )
+        else:
+            return brushnet(x,
+                            encoder_hidden_states=prompt_embeds,
+                            brushnet_cond=conditioning_latents,
+                            timestep = timesteps,
+                            conditioning_scale=cond_scale,
+                            guess_mode=False,
+                            added_cond_kwargs=added_cond_kwargs,
+                            return_dict=False,
+                        )
     else:
         print('BrushNet model is not a BrushNetModel class')
         return ([], [], [])
@@ -382,13 +412,19 @@ def add_model_patch_option(model):
         to["model_patch"] = {}
     return to
 
-def add_brushnet_patch(model, brushnet, conditioning_latents, controls, prompt_embeds, add_text_embeds, add_time_ids):
+def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_latents2, 
+                       controls, 
+                       prompt_embeds, add_text_embeds, add_time_ids,
+                       prompt_embeds2, add_text_embeds2, add_time_ids2):
     to = add_model_patch_option(model)
     to['model_patch']['brushnet_model'] = brushnet
     to['model_patch']['brushnet_latents'] = conditioning_latents
+    to['model_patch']['brushnet_latents2'] = conditioning_latents2
     to['model_patch']['brushnet_controls'] = controls
     to['model_patch']['brushnet_prompt'] = prompt_embeds
+    to['model_patch']['brushnet_prompt2'] = prompt_embeds2
     to['model_patch']['brushnet_add_embeds'] = {"text_embeds": add_text_embeds, "time_ids": add_time_ids}
+    to['model_patch']['brushnet_add_embeds2'] = {"text_embeds": add_text_embeds2, "time_ids": add_time_ids2}
 
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
