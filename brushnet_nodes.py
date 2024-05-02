@@ -195,6 +195,7 @@ class BrushNet:
         with torch.no_grad():
             processed_image = masked_image.to(vae.device)
             processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
+
             image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
             image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
 
@@ -356,8 +357,11 @@ def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, p
 def brushnet_inference(x, timesteps, transformer_options):
     if 'model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch in transformer_options')
-        return ([], [], [])
+        return ([], 0, [])
     mp = transformer_options['model_patch']
+    if 'brushnet_model' not in mp:
+        print('BrushNet inference: there is no model_patch in transformer_options')
+        return ([], 0, [])
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel):
         conditioning_latents = mp['brushnet_latents']
@@ -402,7 +406,7 @@ def brushnet_inference(x, timesteps, transformer_options):
                         )
     else:
         print('BrushNet model is not a BrushNetModel class')
-        return ([], [], [])
+        return ([], 0, [])
 
 def add_model_patch_option(model):
     if 'transformer_options' not in model.model_options:
@@ -446,12 +450,12 @@ def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_laten
         for i, block in enumerate(self.input_blocks):
             for j, layer in enumerate(block):
                 if [i,j] in input_blocks:
-                    layer.brushnet_sample = input_samples.pop(0)
+                    layer.brushnet_sample = input_samples.pop(0) if input_samples else 0
         self.middle_block[-1].brushnet_sample = mid_sample
         for i, block in enumerate(self.output_blocks):
             for j, layer in enumerate(block):
                 if [i,j] in output_blocks:
-                    layer.brushnet_sample = output_samples.pop(0)
+                    layer.brushnet_sample = output_samples.pop(0) if output_samples else 0
         return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
     model.model.diffusion_model.forward = types.MethodType(forward_patched_by_brushnet, model.model.diffusion_model)
 
