@@ -251,7 +251,7 @@ class BrushNet:
         prompt_embeds = positive[0][0][0].to(brushnet['brushnet'].device)
         negative_prompt_embeds = negative[0][0][0].to(brushnet['brushnet'].device)
 
-        if len(positive[0]) > 1 and 'pooled_output' in positive[0][1]:
+        if len(positive[0]) > 1 and 'pooled_output' in positive[0][1] and positive[0][1]['pooled_output'] is not None:
             add_text_embeds = positive[0][1]['pooled_output'].to(brushnet['brushnet'].device)
         else:
             print('BrushNet: positive conditioning has not pooled_output')
@@ -259,7 +259,7 @@ class BrushNet:
                 print('BrushNet will not produce correct results')
             add_text_embeds = torch.empty([2, 1280], device=brushnet['brushnet'].device)
 
-        if len(negative[0]) > 1 and 'pooled_output' in negative[0][1]:
+        if len(negative[0]) > 1 and 'pooled_output' in negative[0][1] and negative[0][1]['pooled_output'] is not None:
             negative_pooled_prompt_embeds = negative[0][1]['pooled_output'].to(brushnet['brushnet'].device)
         else:
             print('BrushNet: negative conditioning has not pooled_output')
