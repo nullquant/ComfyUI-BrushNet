@@ -87,7 +87,7 @@ class BrushNetLoader:
         brushnet_model = load_checkpoint_and_dispatch(
             brushnet_model,
             brushnet_file,
-            device_map="auto",
+            device_map="sequential",
             max_memory=None,
             offload_folder=None,
             offload_state_dict=False,

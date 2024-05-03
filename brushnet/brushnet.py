@@ -750,6 +750,9 @@ class BrushNetModel(ModelMixin, ConfigMixin):
 
         if timestep is None and time_emb is None:
             raise ValueError(f"`timestep` and `emb` are both None")
+        
+        print("BN: sample.device", sample.device)
+        print("BN: TE.device", self.time_embedding.linear_1.weight.device)
 
         if timestep is not None:
             # 1. time
@@ -776,7 +779,7 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             # there might be better ways to encapsulate this.
             t_emb = t_emb.to(dtype=sample.dtype)
 
-            print("BN t_emb.device =",t_emb.device)
+            print("t_emb.device =",t_emb.device)
 
             emb = self.time_embedding(t_emb, timestep_cond)
             aug_emb = None
