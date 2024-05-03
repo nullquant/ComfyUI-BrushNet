@@ -251,8 +251,21 @@ class BrushNet:
         prompt_embeds = positive[0][0][0].to(brushnet['brushnet'].device)
         negative_prompt_embeds = negative[0][0][0].to(brushnet['brushnet'].device)
 
-        add_text_embeds = positive[0][1]['pooled_output'].to(brushnet['brushnet'].device)
-        negative_pooled_prompt_embeds = negative[0][1]['pooled_output'].to(brushnet['brushnet'].device)
+        if len(positive[0]) > 1 and 'pooled_output' in positive[0][1]:
+            add_text_embeds = positive[0][1]['pooled_output'].to(brushnet['brushnet'].device)
+        else:
+            print('BrushNet: positive conditioning has not pooled_output')
+            if is_SDXL:
+                print('BrushNet will not produce correct results')
+            add_text_embeds = torch.empty([2, 1280], device=brushnet['brushnet'].device)
+
+        if len(negative[0]) > 1 and 'pooled_output' in negative[0][1]:
+            negative_pooled_prompt_embeds = negative[0][1]['pooled_output'].to(brushnet['brushnet'].device)
+        else:
+            print('BrushNet: negative conditioning has not pooled_output')
+            if is_SDXL:
+                print('BrushNet will not produce correct results')
+            negative_pooled_prompt_embeds = torch.empty([1, 1280], device=brushnet['brushnet'].device)
 
         add_time_ids = torch.FloatTensor([[height, width, 0., 0., height, width]]).to(brushnet['brushnet'].device)
         negative_add_time_ids = add_time_ids
