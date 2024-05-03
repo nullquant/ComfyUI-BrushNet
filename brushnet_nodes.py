@@ -169,6 +169,10 @@ class BrushNet:
 
     def model_update(self, model, vae, image, mask, brushnet, positive, negative, scale, start_at, end_at):
 
+        # Make a copy of the model so that we're not patching it everywhere in
+        # the workflow.
+        model = model.clone()
+
         is_SDXL = False
         if isinstance(model.model.model_config, comfy.supported_models.SD15):
             print('Base model type: SD1.5')
