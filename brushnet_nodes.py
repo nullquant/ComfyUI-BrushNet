@@ -15,6 +15,7 @@ import latent_preview
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
 from .brushnet.brushnet import BrushNetModel
+from .brushnet.brushnet_ca import BrushNetModel as PowerPaintModel
 
 import types
 from typing import Tuple
@@ -25,6 +26,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 current_directory = os.path.dirname(os.path.abspath(__file__))
 brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
 brushnet_xl_config_file = os.path.join(current_directory, 'brushnet', 'brushnet_xl.json')
+powerpaint_config_file = os.path.join(current_directory,'brushnet', 'powerpaint.json')
 
 torch_dtype = torch.float16
 sd15_scaling_factor = 0.18215
@@ -50,24 +52,35 @@ class BrushNetLoader:
         brushnet_file = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
 
         is_SDXL = False
+        is_PP = False
         sd = comfy.utils.load_torch_file(brushnet_file)
-        brushnet_down_block, brushnet_mid_block, brushnet_up_block = brushnet_blocks(sd)
+        brushnet_down_block, brushnet_mid_block, brushnet_up_block, keys = brushnet_blocks(sd)
         del sd
         if brushnet_down_block == 24 and brushnet_mid_block == 2 and brushnet_up_block == 30:
-            print('BrushNet model type: SD1.5')
             is_SDXL = False
+            if keys == 322:
+                is_PP = False
+                print('BrushNet model type: SD1.5')
+            else:
+                is_PP = True
+                print('PowerPaint model type: SD1.5')
         elif brushnet_down_block == 18 and brushnet_mid_block == 2 and brushnet_up_block == 22:
             print('BrushNet model type: Loading SDXL')
             is_SDXL = True
+            is_PP = False
         else:
             raise Exception("Unknown BrushNet model")
 
         with init_empty_weights():
             if is_SDXL:
                 brushnet_config = BrushNetModel.load_config(brushnet_xl_config_file)
+                brushnet_model = BrushNetModel.from_config(brushnet_config)
+            elif is_PP:
+                brushnet_config = PowerPaintModel.load_config(powerpaint_config_file)
+                brushnet_model = PowerPaintModel.from_config(brushnet_config)
             else:
                 brushnet_config = BrushNetModel.load_config(brushnet_config_file)
-            brushnet_model = BrushNetModel.from_config(brushnet_config)
+                brushnet_model = BrushNetModel.from_config(brushnet_config)
 
         print("BrushNet model file:", brushnet_file)
 
@@ -82,9 +95,12 @@ class BrushNetLoader:
             force_hooks=False,
         )
 
-        print("BrushNet model is loaded, SDXL:", is_SDXL)
+        if is_PP: 
+            print("PowerPaint model is loaded")
+        else:
+            print("BrushNet model is loaded, SDXL:", is_SDXL)
 
-        return ({"brushnet": brushnet_model, "SDXL": is_SDXL},)
+        return ({"brushnet": brushnet_model, "SDXL": is_SDXL, "PP": is_PP},)
 
     
 def inpaint_safetensors():
@@ -119,7 +135,7 @@ def brushnet_blocks(sd):
             brushnet_mid_block += 1        
         if 'brushnet_up_block' in key:
             brushnet_up_block += 1
-    return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, )
+    return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, len(sd))
 
 
 class BrushNet:
@@ -139,11 +155,15 @@ class BrushNet:
                         "start_at": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0}),
                         "end_at": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
                      },
-                }
+                "optional": 
+                    {
+                        "clip": ("PPCLIP",),
+                    },
+        }
 
     CATEGORY = "inpaint"
-    RETURN_TYPES = ("MODEL","LATENT",)
-    RETURN_NAMES = ("model","latent",)
+    RETURN_TYPES = ("MODEL","CONDITIONING","CONDITIONING","LATENT",)
+    RETURN_NAMES = ("model","positive","negative","latent",)
 
     FUNCTION = "model_update"
 
@@ -154,7 +174,9 @@ class BrushNet:
             print('Base model type: SD1.5')
             is_SDXL = False
             if brushnet["SDXL"]:
-                raise Exception("Base model is SD15, but BrushNet is SDXL type")    
+                raise Exception("Base model is SD15, but BrushNet is SDXL type")  
+            if brushnet["PP"]:
+                raise Exception("PowerPaint model is not yet supported")  
         elif isinstance(model.model.model_config, comfy.supported_models.SDXL):
             print('Base model type: SDXL')
             is_SDXL = True
@@ -263,7 +285,7 @@ class BrushNet:
         latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
         #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
 
-        return (cloned, {"samples":latent},)
+        return (cloned, positive, negative, {"samples":latent},)
 
 
 class BlendInpaint:

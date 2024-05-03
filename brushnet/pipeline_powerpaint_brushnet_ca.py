@@ -1,18 +1,25 @@
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+import sys
+from typing import Any, Callable, Dict, List, Optional, Union
 
 import numpy as np
 import PIL.Image
 import torch
 import torch.nn.functional as F
+
+
+sys.path.append("..")
 from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTokenizer, CLIPVisionModelWithProjection
 
-from ...image_processor import PipelineImageInput, VaeImageProcessor
-from ...loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
-from ...models import AutoencoderKL, BrushNetCAModel, ImageProjection, UNet2DConditionModel
-from ...models.lora import adjust_lora_scale_text_encoder
-from ...schedulers import KarrasDiffusionSchedulers
-from ...utils import (
+from diffusers.image_processor import PipelineImageInput, VaeImageProcessor
+from diffusers.loaders import FromSingleFileMixin, IPAdapterMixin, LoraLoaderMixin, TextualInversionLoaderMixin
+from diffusers.models import AutoencoderKL
+from diffusers.models.lora import adjust_lora_scale_text_encoder
+from diffusers.pipelines.pipeline_utils import DiffusionPipeline
+from diffusers.pipelines.stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
+from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.schedulers import KarrasDiffusionSchedulers
+from diffusers.utils import (
     USE_PEFT_BACKEND,
     deprecate,
     logging,
@@ -20,10 +27,12 @@ from ...utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from ...utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
-from ..pipeline_utils import DiffusionPipeline, StableDiffusionMixin
-from ..stable_diffusion.pipeline_output import StableDiffusionPipelineOutput
-from ..stable_diffusion.safety_checker import StableDiffusionSafetyChecker
+from diffusers.utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
+
+from .unet_2d_condition import UNet2DConditionModel
+from .brushnet_ca import BrushNetModel
+
+from diffusers.pipelines.pipeline_utils import StableDiffusionMixin
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -68,10 +77,10 @@ EXAMPLE_DOC_STRING = """
         generator = torch.Generator("cuda").manual_seed(1234)
 
         image = pipe(
-            caption, 
-            init_image, 
-            mask_image, 
-            num_inference_steps=50, 
+            caption,
+            init_image,
+            mask_image,
+            num_inference_steps=50,
             generator=generator,
             paintingnet_conditioning_scale=1.0
         ).images[0]
@@ -125,7 +134,7 @@ def retrieve_timesteps(
     return timesteps, num_inference_steps
 
 
-class StableDiffusionBrushNetPowerPaintCAPipeline(
+class StableDiffusionPowerPaintBrushNetPipeline(
     DiffusionPipeline,
     StableDiffusionMixin,
     TextualInversionLoaderMixin,
@@ -180,7 +189,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         text_encoder_brushnet: CLIPTextModel,
         tokenizer: CLIPTokenizer,
         unet: UNet2DConditionModel,
-        brushnet: BrushNetCAModel,
+        brushnet: BrushNetModel,
         scheduler: KarrasDiffusionSchedulers,
         safety_checker: StableDiffusionSafetyChecker,
         feature_extractor: CLIPImageProcessor,
@@ -208,7 +217,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         self.register_modules(
             vae=vae,
             text_encoder=text_encoder,
-            text_encoder_brushnet = text_encoder_brushnet,
+            text_encoder_brushnet=text_encoder_brushnet,
             tokenizer=tokenizer,
             unet=unet,
             brushnet=brushnet,
@@ -232,14 +241,11 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         do_classifier_free_guidance,
         negative_promptA=None,
         negative_promptB=None,
-        t_nag = None,
+        t_nag=None,
         prompt_embeds: Optional[torch.FloatTensor] = None,
         negative_prompt_embeds: Optional[torch.FloatTensor] = None,
         lora_scale: Optional[float] = None,
     ):
-        deprecation_message = "`_encode_prompt()` is deprecated and it will be removed in a future version. Use `encode_prompt()` instead. Also, be aware that the output format changed from a concatenated tensor to a tuple."
-        deprecate("_encode_prompt()", "1.0.0", deprecation_message, standard_warn=False)
-
         r"""
         Encodes the prompt into text encoder hidden states.
 
@@ -270,7 +276,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         # function of text encoder can correctly access it
         if lora_scale is not None and isinstance(self, LoraLoaderMixin):
             self._lora_scale = lora_scale
-        
+
         prompt = promptA
         negative_prompt = negative_promptA
 
@@ -315,10 +321,14 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                     f" {self.tokenizer.model_max_length} tokens: {removed_text}"
                 )
 
-            if hasattr(self.text_encoder_brushnet.config, "use_attention_mask") and self.text_encoder_brushnet.config.use_attention_mask:
-                attention_mask = text_inputsA.attention_mask.to(device)
-            else:
-                attention_mask = None
+            ### NQ's removal
+            #if (
+            #    hasattr(self.text_encoder_brushnet.config, "use_attention_mask")
+            #    and self.text_encoder_brushnet.config.use_attention_mask
+            #):
+            #    attention_mask = text_inputsA.attention_mask.to(device)
+            #else:
+            attention_mask = None
 
             # print("text_input_idsA: ",text_input_idsA)
             # print("text_input_idsB: ",text_input_idsB)
@@ -335,7 +345,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                 attention_mask=attention_mask,
             )
             prompt_embedsB = prompt_embedsB[0]
-            prompt_embeds = prompt_embedsA*(t)+(1-t)*prompt_embedsB
+            prompt_embeds = prompt_embedsA * (t) + (1 - t) * prompt_embedsB
             # print("prompt_embeds: ",prompt_embeds)
 
         if self.text_encoder_brushnet is not None:
@@ -398,10 +408,14 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                 return_tensors="pt",
             )
 
-            if hasattr(self.text_encoder_brushnet.config, "use_attention_mask") and self.text_encoder_brushnet.config.use_attention_mask:
-                attention_mask = uncond_inputA.attention_mask.to(device)
-            else:
-                attention_mask = None
+            ### NQ's remove
+            #if (
+            #    hasattr(self.text_encoder_brushnet.config, "use_attention_mask")
+            #    and self.text_encoder_brushnet.config.use_attention_mask
+            #):
+            #    attention_mask = uncond_inputA.attention_mask.to(device)
+            #else:
+            attention_mask = None
 
             negative_prompt_embedsA = self.text_encoder_brushnet(
                 uncond_inputA.input_ids.to(device),
@@ -411,7 +425,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                 uncond_inputB.input_ids.to(device),
                 attention_mask=attention_mask,
             )
-            negative_prompt_embeds = negative_prompt_embedsA[0]*(t_nag)+(1-t_nag)*negative_prompt_embedsB[0]
+            negative_prompt_embeds = negative_prompt_embedsA[0] * (t_nag) + (1 - t_nag) * negative_prompt_embedsB[0]
 
             # negative_prompt_embeds = negative_prompt_embeds[0]
 
@@ -804,9 +818,9 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
             self.brushnet, torch._dynamo.eval_frame.OptimizedModule
         )
         if (
-            isinstance(self.brushnet, BrushNetCAModel)
+            isinstance(self.brushnet, BrushNetModel)
             or is_compiled
-            and isinstance(self.brushnet._orig_mod, BrushNetCAModel)
+            and isinstance(self.brushnet._orig_mod, BrushNetModel)
         ):
             self.check_image(image, mask, prompt, prompt_embeds)
         else:
@@ -814,9 +828,9 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
 
         # Check `brushnet_conditioning_scale`
         if (
-            isinstance(self.brushnet, BrushNetCAModel)
+            isinstance(self.brushnet, BrushNetModel)
             or is_compiled
-            and isinstance(self.brushnet._orig_mod, BrushNetCAModel)
+            and isinstance(self.brushnet._orig_mod, BrushNetModel)
         ):
             if not isinstance(brushnet_conditioning_scale, float):
                 raise TypeError("For single brushnet: `brushnet_conditioning_scale` must be type `float`.")
@@ -1233,7 +1247,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
 
         global_pool_conditions = (
             brushnet.config.global_pool_conditions
-            if isinstance(brushnet, BrushNetCAModel)
+            if isinstance(brushnet, BrushNetModel)
             else brushnet.nets[0].config.global_pool_conditions
         )
         guess_mode = guess_mode or global_pool_conditions
@@ -1242,6 +1256,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         text_encoder_lora_scale = (
             self.cross_attention_kwargs.get("scale", None) if self.cross_attention_kwargs is not None else None
         )
+
         prompt_embeds = self._encode_prompt(
             promptA,
             promptB,
@@ -1269,8 +1284,6 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
             lora_scale=text_encoder_lora_scale,
         )
 
-
-
         if ip_adapter_image is not None or ip_adapter_image_embeds is not None:
             image_embeds = self.prepare_ip_adapter_image_embeds(
                 ip_adapter_image,
@@ -1281,7 +1294,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
             )
 
         # 4. Prepare image
-        if isinstance(brushnet, BrushNetCAModel):
+        if isinstance(brushnet, BrushNetModel):
             image = self.prepare_image(
                 image=image,
                 width=width,
@@ -1304,7 +1317,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                 do_classifier_free_guidance=self.do_classifier_free_guidance,
                 guess_mode=guess_mode,
             )
-            original_mask=(original_mask.sum(1)[:,None,:,:] < 0).to(image.dtype)
+            original_mask = (original_mask.sum(1)[:, None, :, :] < 0).to(image.dtype)
             height, width = image.shape[-2:]
         else:
             assert False
@@ -1327,24 +1340,21 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
         )
 
         # 6.1 prepare condition latents
-        from torchvision import transforms
         # mask_i = transforms.ToPILImage()(image[0:1,:,:,:].squeeze(0))
         # mask_i.save('_mask.png')
         # print(brushnet.dtype)
-        conditioning_latents=self.vae.encode(image.to(device=device, dtype=brushnet.dtype)).latent_dist.sample() * self.vae.config.scaling_factor
+        conditioning_latents = (
+            self.vae.encode(image.to(device=device, dtype=brushnet.dtype)).latent_dist.sample()
+            * self.vae.config.scaling_factor
+        )
         mask = torch.nn.functional.interpolate(
-                    original_mask, 
-                    size=(
-                        conditioning_latents.shape[-2], 
-                        conditioning_latents.shape[-1]
-                    )
-                )
-        conditioning_latents = torch.concat([conditioning_latents,mask],1)
+            original_mask, size=(conditioning_latents.shape[-2], conditioning_latents.shape[-1])
+        )
+        conditioning_latents = torch.concat([conditioning_latents, mask], 1)
         # image = self.vae.decode(conditioning_latents[:1,:4,:,:] / self.vae.config.scaling_factor, return_dict=False, generator=generator)[0]
         # from torchvision import transforms
         # mask_i = transforms.ToPILImage()(image[0:1,:,:,:].squeeze(0)/2+0.5)
         # mask_i.save(str(timesteps[0])  +'_C.png')
-
 
         # 6.5 Optionally get Guidance Scale Embedding
         timestep_cond = None
@@ -1371,7 +1381,7 @@ class StableDiffusionBrushNetPowerPaintCAPipeline(
                 1.0 - float(i / len(timesteps) < s or (i + 1) / len(timesteps) > e)
                 for s, e in zip(control_guidance_start, control_guidance_end)
             ]
-            brushnet_keep.append(keeps[0] if isinstance(brushnet, BrushNetCAModel) else keeps)
+            brushnet_keep.append(keeps[0] if isinstance(brushnet, BrushNetModel) else keeps)
 
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
