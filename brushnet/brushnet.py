@@ -776,6 +776,8 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             # there might be better ways to encapsulate this.
             t_emb = t_emb.to(dtype=sample.dtype)
 
+            print("BN t_emb.device =",t_emb.device)
+
             emb = self.time_embedding(t_emb, timestep_cond)
             aug_emb = None
 

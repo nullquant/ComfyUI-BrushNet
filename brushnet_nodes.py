@@ -420,20 +420,20 @@ def brushnet_inference(x, timesteps, transformer_options):
         cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
 
         if x.shape[0] == 2:
-            return brushnet(x,
+            return brushnet(x.to(brushnet.device),
                             encoder_hidden_states=prompt_embeds2,
                             brushnet_cond=conditioning_latents2,
-                            timestep = timesteps,
+                            timestep = timesteps.to(brushnet.device),
                             conditioning_scale=cond_scale,
                             guess_mode=False,
                             added_cond_kwargs=added_cond_kwargs2,
                             return_dict=False,
                         )
         else:
-            return brushnet(x,
+            return brushnet(x.to(brushnet.device),
                             encoder_hidden_states=prompt_embeds,
                             brushnet_cond=conditioning_latents,
-                            timestep = timesteps,
+                            timestep = timesteps.to(brushnet.device),
                             conditioning_scale=cond_scale,
                             guess_mode=False,
                             added_cond_kwargs=added_cond_kwargs,
