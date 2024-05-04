@@ -376,6 +376,7 @@ def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, p
     to = add_model_patch_option(model)
     to['model_patch']['step'] = 0
     to['model_patch']['total_steps'] = steps
+    to['model_patch']['cfg'] = cfg
 
     def callback(step, x0, x, total_steps):
         to['model_patch']['step'] = step + 1
@@ -402,43 +403,61 @@ def brushnet_inference(x, timesteps, transformer_options):
         return ([], 0, [])
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel):
-        conditioning_latents = mp['brushnet_latents']
-        conditioning_latents2 = mp['brushnet_latents2']
+        cl = mp['brushnet_latents']
+        cl2 = mp['brushnet_latents2']
         brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
-        prompt_embeds = mp['brushnet_prompt']
-        prompt_embeds2 = mp['brushnet_prompt2']
-        added_cond_kwargs = mp['brushnet_add_embeds']
-        added_cond_kwargs2 = mp['brushnet_add_embeds2']
+        pe = mp['brushnet_prompt']
+        pe2 = mp['brushnet_prompt2']
+        ack = mp['brushnet_add_embeds']
+        ack2 = mp['brushnet_add_embeds2']
         step = mp['step']
         total_steps = mp['total_steps']
+        cfg = mp['cfg']
+
+        added_cond_kwargs = {}
 
         check = False
-        if (x.shape[0], x.shape[2], x.shape[3]) != (conditioning_latents.shape[0], conditioning_latents.shape[2], conditioning_latents.shape[3]):
+        if (x.shape[0], x.shape[2], x.shape[3]) != (cl.shape[0], cl.shape[2], cl.shape[3]):
             if step == 0:
-                print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
+                print('BrushNet inference: sample', x.shape, ', CL', cl.shape)
             check = True
 
-        if x.shape[0] == 2:
+        do_classifier_free_guidance = cfg > 1
+        if do_classifier_free_guidance and step == 0:
+            print('BrushNet inference: do_classifier_free_guidance is True')
+
+        if do_classifier_free_guidance and x.shape[0] %2 != 0:
             if step == 0:
-                print('BrushNet inference: do_classifier_free_guidance')
-            conditioning_latents = conditioning_latents2
-            prompt_embeds = prompt_embeds2
-            added_cond_kwargs = added_cond_kwargs2
-        elif x.shape[0] > 2:
-            if step == 0:
-                print('BrushNet inference: latent batch ' + str(x.shape[0]))
-            if x.shape[0] % 2 == 0:
+                print('Do_classifier_free_guidance and x.shape', x.shape, ', set DCFG = False')
+            do_classifier_free_guidance = False
+
+        if do_classifier_free_guidance:
+            if x.shape[0] > 2:
                 if step == 0:
-                    print('BrushNet inference: do_classifier_free_guidance')
-                conditioning_latents = torch.cat([conditioning_latents2] * (x.shape[0] // 2), dim=0).to(x.device)
-                prompt_embeds = prompt_embeds2
-                added_cond_kwargs = added_cond_kwargs2
+                    print('BrushNet inference: latent batch ', x.shape[0] // 2)
+                conditioning_latents = torch.cat([cl2] * (x.shape[0] // 2), dim=0).to(x.device)
+                prompt_embeds = pe2
+                added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(x.device)
+                added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(x.device)
             else:
-                conditioning_latents = torch.cat([conditioning_latents] * x.shape[0], dim=0).to(x.device)
+                conditioning_latents = cl2
+                prompt_embeds = pe2
+                added_cond_kwargs = ack2
+        elif x.shape[0] > 1:
+            if step == 0:
+                print('BrushNet inference: latent batch ', x.shape[0])
+            conditioning_latents = torch.cat([cl] * x.shape[0], dim=0).to(x.device)
+            prompt_embeds = pe
+            added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(x.device)
+            added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(x.device)
+        else:
+            conditioning_latents = cl
+            prompt_embeds = pe
+            added_cond_kwargs = ack
 
         if x.shape[2] != conditioning_latents.shape[2] or x.shape[3] != conditioning_latents.shape[3]:
             if step == 0:
-                print('BrushNet inference: image '+ str(conditioning_latents.shape) + ' and latent ' + str(x.shape) + ' have different size, resizing image')
+                print('BrushNet inference: image', conditioning_latents.shape, 'and latent', x.shape, 'have different size, resizing image')
             conditioning_latents = torch.nn.functional.interpolate(
                 conditioning_latents, size=(
                     x.shape[2], 

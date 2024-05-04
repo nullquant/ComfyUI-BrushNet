@@ -784,6 +784,8 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             emb = self.time_embedding(t_emb, timestep_cond)
             aug_emb = None
 
+            #print('emb.shape', emb.shape)
+
             if self.class_embedding is not None:
                 if class_labels is None:
                     raise ValueError("class_labels should be provided when num_class_embeds > 0")
@@ -815,6 +817,8 @@ class BrushNetModel(ModelMixin, ConfigMixin):
                     add_embeds = torch.concat([text_embeds, time_embeds], dim=-1)
                     add_embeds = add_embeds.to(emb.dtype)
                     aug_emb = self.add_embedding(add_embeds)
+
+                    #print('text_embeds', text_embeds.shape, 'time_ids', time_ids.shape, 'time_embeds', time_embeds.shape, 'add__embeds', add_embeds.shape, 'aug_emb', aug_emb.shape)
 
             emb = emb + aug_emb if aug_emb is not None else emb
         else:
