@@ -265,7 +265,7 @@ class BrushNet:
             print('BrushNet: negative conditioning has not pooled_output')
             if is_SDXL:
                 print('BrushNet will not produce correct results')
-            negative_pooled_prompt_embeds = torch.empty([1, 1280], device=brushnet['brushnet'].device)
+            negative_pooled_prompt_embeds = torch.empty([1, add_text_embeds.shape[1]], device=brushnet['brushnet'].device)
 
         add_time_ids = torch.FloatTensor([[height, width, 0., 0., height, width]]).to(brushnet['brushnet'].device)
         negative_add_time_ids = add_time_ids
