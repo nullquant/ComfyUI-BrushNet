@@ -831,6 +831,9 @@ class BrushNetModel(ModelMixin, ConfigMixin):
                 ), mode='bicubic',
             ).to(sample.device).to(sample.dtype)
 
+        if sample.shape[0] > 1:
+            brushnet_cond = torch.cat([brushnet_cond] * sample.shape[0], dim=0).to(sample.device)
+
         brushnet_cond=torch.concat([sample,brushnet_cond],1)
         sample = self.conv_in_condition(brushnet_cond)
 
