@@ -290,8 +290,7 @@ class BrushNet:
         control_guidance_start = start_at
         control_guidance_end = end_at
 
-        cloned = model.clone()
-        add_brushnet_patch(cloned, 
+        add_brushnet_patch(model, 
                            brushnet['brushnet'],
                            conditioning_latents, 
                            conditioning_latents2, 
@@ -302,7 +301,7 @@ class BrushNet:
         latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
         #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
 
-        return (cloned, positive, negative, {"samples":latent},)
+        return (model, positive, negative, {"samples":latent},)
 
 
 class BlendInpaint:
@@ -508,10 +507,15 @@ def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_laten
     if not hasattr(model.model.diffusion_model, 'original_forward'):
         model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
     def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
-        # brushnet inference
-        input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
-        # give blocks additional samples
-        # no control of samples length
+        # check if this is brushnet patched model
+        if 'model_patch' not in transformer_options or 'brushnet_model' not in transformer_options['model_patch']:
+            input_samples = []
+            mid_sample = 0
+            output_samples = []
+        else:    
+            # brushnet inference
+            input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+        # give additional samples to blocks
         for i, block in enumerate(self.input_blocks):
             for j, layer in enumerate(block):
                 if [i,j] in input_blocks:
