@@ -822,18 +822,6 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         
         # 2. pre-process
 
-        if sample.shape[2] != brushnet_cond.shape[2] or sample.shape[3] != brushnet_cond.shape[3]:
-            print("Image "+ str(brushnet_cond.shape) +" and latent " + str(sample.shape) + " have different size, resizing image")
-            brushnet_cond = torch.nn.functional.interpolate(
-                brushnet_cond, size=(
-                    sample.shape[2], 
-                    sample.shape[3],
-                ), mode='bicubic',
-            ).to(sample.device).to(sample.dtype)
-
-        if sample.shape[0] > 1:
-            brushnet_cond = torch.cat([brushnet_cond] * sample.shape[0], dim=0).to(sample.device)
-
         brushnet_cond=torch.concat([sample,brushnet_cond],1)
         sample = self.conv_in_condition(brushnet_cond)
 

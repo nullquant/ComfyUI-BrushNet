@@ -408,7 +408,44 @@ def brushnet_inference(x, timesteps, transformer_options):
         added_cond_kwargs2 = mp['brushnet_add_embeds2']
         step = mp['step']
         total_steps = mp['total_steps']
-        
+
+        check = False
+        if (x.shape[0], x.shape[2], x.shape[3]) != (conditioning_latents.shape[0], conditioning_latents.shape[2], conditioning_latents.shape[3]):
+            if step == 0:
+                print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
+            check = True
+
+        if x.shape[0] == 2:
+            if step == 0:
+                print('BrushNet inference: do_classifier_free_guidance')
+            conditioning_latents = conditioning_latents2
+            prompt_embeds = prompt_embeds2
+            added_cond_kwargs = added_cond_kwargs2
+        elif x.shape[0] > 2:
+            if step == 0:
+                print('BrushNet inference: latent batch ' + str(x.shape[0]))
+            if x.shape[0] % 2 == 0:
+                if step == 0:
+                    print('BrushNet inference: do_classifier_free_guidance')
+                conditioning_latents = torch.cat([conditioning_latents2] * (x.shape[0] // 2), dim=0).to(x.device)
+                prompt_embeds = prompt_embeds2
+                added_cond_kwargs = added_cond_kwargs2
+            else:
+                conditioning_latents = torch.cat([conditioning_latents] * x.shape[0], dim=0).to(x.device)
+
+        if x.shape[2] != conditioning_latents.shape[2] or x.shape[3] != conditioning_latents.shape[3]:
+            if step == 0:
+                print('BrushNet inference: image '+ str(conditioning_latents.shape) + ' and latent ' + str(x.shape) + ' have different size, resizing image')
+            conditioning_latents = torch.nn.functional.interpolate(
+                conditioning_latents, size=(
+                    x.shape[2], 
+                    x.shape[3],
+                ), mode='bicubic',
+            ).to(x.device).to(x.dtype)
+
+        if check and step == 0:
+            print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
+
         brushnet_keep = []
         for i in range(total_steps):
             keeps = [
@@ -419,26 +456,15 @@ def brushnet_inference(x, timesteps, transformer_options):
 
         cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
 
-        if x.shape[0] == 2:
-            return brushnet(x.to(brushnet.device),
-                            encoder_hidden_states=prompt_embeds2,
-                            brushnet_cond=conditioning_latents2,
-                            timestep = timesteps.to(brushnet.device),
-                            conditioning_scale=cond_scale,
-                            guess_mode=False,
-                            added_cond_kwargs=added_cond_kwargs2,
-                            return_dict=False,
-                        )
-        else:
-            return brushnet(x.to(brushnet.device),
-                            encoder_hidden_states=prompt_embeds,
-                            brushnet_cond=conditioning_latents,
-                            timestep = timesteps.to(brushnet.device),
-                            conditioning_scale=cond_scale,
-                            guess_mode=False,
-                            added_cond_kwargs=added_cond_kwargs,
-                            return_dict=False,
-                        )
+        return brushnet(x.to(brushnet.device),
+                        encoder_hidden_states=prompt_embeds,
+                        brushnet_cond=conditioning_latents,
+                        timestep = timesteps.to(brushnet.device),
+                        conditioning_scale=cond_scale,
+                        guess_mode=False,
+                        added_cond_kwargs=added_cond_kwargs,
+                        return_dict=False,
+                    )
     else:
         print('BrushNet model is not a BrushNetModel class')
         return ([], 0, [])
