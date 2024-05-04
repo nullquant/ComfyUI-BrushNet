@@ -44,55 +44,63 @@ Below is an example for the intended workflow. The [workflow](example/BrushNet_b
 
 ![example workflow](example/BrushNet_basic.png?raw=true)
 
-The latent image can be from BrushNet node or not, but it should be the same size as original image (divided by 8 in latent space).
+The latent image can be from BrushNet node or not, but it should be the same size as original image (divided by 8 in latent space). Be advised, not all workflows and nodes will work with BrushNet due to its structure. Also put model changes before BrushNet nodes, not after. If you need model to work with image after BrushNet inference use base one (see Upscale example below).
 
 <details>
   <summary>SDXL</summary>
   
-[workflow](example/BrushNet_SDXL_basic.json)
-
 ![example workflow](example/BrushNet_SDXL_basic.png?raw=true)
+
+[workflow](example/BrushNet_SDXL_basic.json)
 
 </details>
 
 <details>
   <summary>IPAdapter plus</summary>
   
-[workflow](example/BrushNet_with_IPA.json)
-
 ![example workflow](example/BrushNet_with_IPA.png?raw=true)
+
+[workflow](example/BrushNet_with_IPA.json)
 
 </details>
 
 <details>
   <summary>LoRA</summary>
   
-[workflow](example/BrushNet_with_LoRA.json)
-
 ![example workflow](example/BrushNet_with_LoRA.png?raw=true)
+
+[workflow](example/BrushNet_with_LoRA.json)
 
 </details>
 
 <details>
   <summary>Blending inpaint</summary>
 
-Sometimes inference and VAE broke image, so you need to blend inpaint image with the original: [workflow](example/BrushNet_inpaint.json)
-
 ![example workflow](example/BrushNet_inpaint.png?raw=true)
 
-You can see blurred and broken text after inpainting in the first image and how I suppose to repair it.
+Sometimes inference and VAE broke image, so you need to blend inpaint image with the original: [workflow](example/BrushNet_inpaint.json). You can see blurred and broken text after inpainting in the first image and how I suppose to repair it.
 
 </details>
 
 <details>
   <summary>ControlNet</summary>
 
-[workflow](example/BrushNet_with_CN.json)
-
 ![example workflow](example/BrushNet_with_CN.png?raw=true)
+
+[workflow](example/BrushNet_with_CN.json)
 
 </details>
 
+<details>
+  <summary>Upscale</summary>
+
+![example workflow](example/BrushNet_SDXL_upscale.png?raw=true)
+
+[workflow](example/BrushNet_SDXL_upscale.json)
+
+To upscale you should use base model, not BrushNet. The same is true for conditioning. Latent upscaling between BrushNet and KSampler will not work or will give you wierd results. These limitations are due to structure of BrushNet and its influence on UNet calculations.
+
+</details>
 
 ## Notes
 
