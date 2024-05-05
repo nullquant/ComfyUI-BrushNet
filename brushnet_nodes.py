@@ -194,9 +194,22 @@ class BrushNet:
         # prepare image and mask
         # no batches for original image and mask
 
-        if image.shape[0] > 1:
+        if len(image.shape) < 4:
+            # image tensor shape should be [B, H, W, C], but batch somehow is missing
+            image = image[None,:,:,:]
+        elif image.shape[0] > 1:
+            # batch > 1, take first image
             image = image[0][None,:,:,:]   
-        if mask.shape[0] > 1:
+        
+        if len(mask.shape) > 3:
+            # mask tensor shape should be [B, H, W] but we get [B, H, W, C], image may be?
+            # take first mask, red channel
+            mask = (mask[0,:,:,0])[None,:,:]
+        elif len(mask.shape) < 3:
+            # mask tensor shape should be [B, H, W] but batch somehow is missing
+            mask = mask[None,:,:]
+        elif mask.shape[0] > 1:
+            # batch > 1, take first mask    
             mask = mask[0][None,:,:]  
 
         width = image.shape[2]
