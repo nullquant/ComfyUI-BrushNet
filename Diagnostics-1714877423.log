@@ -1,0 +1,831 @@
+ComfyUI Launcher Diagnostic File
+
+Date: 2024-05-05 10:50:29
+Launcher Version: 2.8.4.328
+Data File Version: 2024-05-01 12:27
+ComfyUI Version: 72508a8d19121e2814ea4dfbce8a5311f37dcd61 (2024-05-04 15:39:37)
+Working Directory: D:\ComfyUI
+------------------------
+System Information: 
+OS: Microsoft Windows NT 10.0.22631.0
+CPU: 16 cores
+Memory Size: 16384 MB
+Page File Size: 15580 MB
+
+NVIDIA Management Library:
+  NVIDIA Driver Version: 545.84
+  NVIDIA Management Library Version: 12.545.84
+
+CUDA Driver:
+  Version: 12030
+  Devices: 
+    00000000:01:00.0 0: NVIDIA GeForce RTX 3050 Laptop GPU [86] 4 GB
+
+NvApi:
+  Version: 54584 r545_74
+
+HIP Driver:
+  Driver Version: 50221021
+  Runtime Version: 50221021
+  Devices: 
+    00000000:05:00.0 0: AMD Radeon(TM) Graphics [gfx1035, 103] 6 GB
+
+DirectML Driver: 
+  Devices: 
+    9698 0: NVIDIA GeForce RTX 3050 Laptop GPU 3 GB
+    5761 1: AMD Radeon(TM) Graphics 1 GB
+
+Intel Level Zero Driver:
+  Not Available
+
+------------------------
+Environment Variables: 
+RIDER_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\rider.vmoptions
+APPDATA=C:\Users\lele\AppData\Roaming
+iGame=D:\iGame\
+PHPSTORM_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\phpstorm.vmoptions
+USERNAME=lele
+PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC
+HOMEDRIVE=C:
+CommonProgramFiles(x86)=C:\Program Files (x86)\Common Files
+JETBRAINSCLIENT_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\jetbrainsclient.vmoptions
+asl.log=Destination=file
+PYCHARM_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\pycharm.vmoptions
+Path=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\bin;C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3\libnvvp;C:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64_win\compiler;C:\Program Files (x86)\Common Files\Intel\Shared Libraries\redist\intel64\compiler;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Windows\System32\OpenSSH\;C:\Program Files (x86)\NVIDIA Corporation\PhysX\Common;C:\Program Files\NVIDIA Corporation\NVIDIA NvDLISR;C:\WINDOWS\system32;C:\WINDOWS;C:\WINDOWS\System32\Wbem;C:\WINDOWS\System32\WindowsPowerShell\v1.0\;C:\WINDOWS\System32\OpenSSH\;C:\Program Files\dotnet\;C:\Program Files\WireGuard\;C:\Program Files\Cloudflare\Cloudflare WARP\;C:\Program Files\Git\cmd;C:\Program Files\NVIDIA Corporation\Nsight Compute 2023.3.0\;C:\Program Files\Git LFS;C:\Users\lele\AppData\Local\Programs\Python\Python310\Scripts\;C:\Users\lele\AppData\Local\Programs\Python\Python310\;C:\Users\lele\AppData\Local\Microsoft\WindowsApps;C:\ffmpeg\bin;;C:\Program Files\JetBrains\PyCharm 2024.1\bin;;C:\Users\lele\AppData\Local\Programs\Ollama
+LOGONSERVER=\\LE
+STUDIO_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\studio.vmoptions
+IDEA_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\idea.vmoptions
+SESSIONNAME=Console
+CommonProgramFiles=C:\Program Files\Common Files
+ComSpec=C:\WINDOWS\system32\cmd.exe
+windir=C:\WINDOWS
+NUMBER_OF_PROCESSORS=16
+DriverData=C:\Windows\System32\Drivers\DriverData
+OS=Windows_NT
+SHIM_MCCOMPAT=0x810000001
+FPS_BROWSER_APP_PROFILE_STRING=Internet Explorer
+FPS_BROWSER_USER_PROFILE_STRING=Default
+ProgramFiles=C:\Program Files
+USERDOMAIN=LE
+COMPUTERNAME=LE
+TEMP=C:\Users\lele\AppData\Local\Temp
+HOMEPATH=\Users\lele
+CUDA_PATH=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3
+TMP=C:\Users\lele\AppData\Local\Temp
+LOCALAPPDATA=C:\Users\lele\AppData\Local
+APPCODE_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\appcode.vmoptions
+CommonProgramW6432=C:\Program Files\Common Files
+CUDA_PATH_V12_3=C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.3
+GOLAND_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\goland.vmoptions
+INTEL_DEV_REDIST=C:\Program Files (x86)\Common Files\Intel\Shared Libraries\
+SystemRoot=C:\WINDOWS
+JETBRAINS_CLIENT_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\jetbrains_client.vmoptions
+USERPROFILE=C:\Users\lele
+WEBSTORM_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\webstorm.vmoptions
+WEBIDE_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\webide.vmoptions
+ProgramData=C:\ProgramData
+DATASPELL_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\dataspell.vmoptions
+PSModulePath=C:\Program Files\WindowsPowerShell\Modules;C:\WINDOWS\system32\WindowsPowerShell\v1.0\Modules
+PROCESSOR_ARCHITECTURE=AMD64
+ProgramW6432=C:\Program Files
+USERDOMAIN_ROAMINGPROFILE=LE
+NVIDIAWHITELISTED=0x01
+OneDrive=C:\Users\lele\OneDrive
+RUBYMINE_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\rubymine.vmoptions
+PROCESSOR_IDENTIFIER=AMD64 Family 25 Model 68 Stepping 1, AuthenticAMD
+CLION_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\clion.vmoptions
+GIT_LFS_PATH=C:\Program Files\Git LFS
+ProgramFiles(x86)=C:\Program Files (x86)
+GATEWAY_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\gateway.vmoptions
+SystemDrive=C:
+HF_ENDPOINT=https://hf-mirror.com
+EFC_6924=1
+PUBLIC=C:\Users\Public
+ALLUSERSPROFILE=C:\ProgramData
+PyCharm=C:\Program Files\JetBrains\PyCharm 2024.1\bin;
+PROCESSOR_REVISION=4401
+DATAGRIP_VM_OPTIONS=C:\Users\lele\Desktop\方式3：永久激活补丁+脚本（适合最新版本，可显示到2025年）\jetbra\vmoptions\datagrip.vmoptions
+PROCESSOR_LEVEL=25
+------------------------
+Paths: 
+Python: D:\ComfyUI\venv\Scripts\python.exe
+  - Python Paths:
+    - C:\Users\lele\AppData\Local\Programs\Python\Python310\DLLs
+    - C:\Users\lele\AppData\Local\Programs\Python\Python310\lib
+    - C:\Users\lele\AppData\Local\Programs\Python\Python310
+    - D:\ComfyUI\venv
+    - D:\ComfyUI\venv\lib\site-packages
+    - D:\ComfyUI\venv\lib\site-packages\win32
+    - D:\ComfyUI\venv\lib\site-packages\win32\lib
+    - D:\ComfyUI\venv\lib\site-packages\Pythonwin
+  - Python Packages:
+    - absl_py 2.1.0 
+    - accelerate 0.29.3 
+    - addict 2.4.0 
+    - aiofiles 23.2.1 
+    - aiohttp 3.9.5 
+    - aiosignal 1.3.1 
+    - albumentations 1.4.4 
+    - altair 5.3.0 
+    - annotated_types 0.6.0 
+    - antlr4_python3_runtime 4.9.3 
+    - anyio 4.3.0 
+    - asttokens 2.4.1 
+    - async_timeout 4.0.3 
+    - attrdict 2.0.1 
+    - attrs 23.2.0 
+    - autoawq 0.2.3 
+    - autoawq_kernels 0.0.6 
+    - auto_gptq 0.7.1 
+    - backcall 0.2.0 
+    - beautifulsoup4 4.12.3 
+    - bitsandbytes 0.43.1 
+    - bleach 6.1.0 
+    - cachetools 5.3.3 
+    - certifi 2024.2.2 
+    - cffi 1.16.0 
+    - chardet 5.2.0 
+    - charset_normalizer 3.3.2 
+    - click 8.1.7 
+    - clip_interrogator 0.6.0 
+    - cmake 3.29.2 
+    - colorama 0.4.6 
+    - coloredlogs 15.0.1 
+    - colorlog 6.8.2 
+    - contourpy 1.2.1 
+    - cryptography 42.0.5 
+    - cssselect2 0.7.0 
+    - cycler 0.12.1 
+    - datasets 2.19.0 
+    - decorator 5.1.1 
+    - decord 0.6.0 
+    - deepseek_vl 1.0.0 
+    - defusedxml 0.7.1 
+    - Deprecated 1.2.14 
+    - diffusers 0.27.2 
+    - dill 0.3.8 
+    - docopt 0.6.2 
+    - einops 0.7.0 
+    - embreex 2.17.7.post4 
+    - exceptiongroup 1.2.1 
+    - executing 2.0.1 
+    - fairscale 0.4.13 
+    - fastapi 0.110.2 
+    - fastjsonschema 2.19.1 
+    - ffmpeg 1.4 
+    - ffmpy 0.3.2 
+    - filelock 3.13.1 
+    - flatbuffers 24.3.25 
+    - fonttools 4.51.0 
+    - frozenlist 1.4.1 
+    - fsspec 2024.2.0 
+    - ftfy 6.2.0 
+    - fvcore 0.1.5.post20221221 
+    - gekko 1.1.1 
+    - gitdb 4.0.11 
+    - GitPython 3.1.43 
+    - gradio 4.28.3 
+    - gradio_client 0.16.0 
+    - h11 0.14.0 
+    - httpcore 1.0.5 
+    - httpx 0.27.0 
+    - huggingface_hub 0.22.2 
+    - humanfriendly 10.0 
+    - idna 3.7 
+    - imageio 2.34.1 
+    - image_reward 1.5 
+    - importlib_metadata 7.1.0 
+    - importlib_resources 6.4.0 
+    - iopath 0.1.9 
+    - ipython 8.12.3 
+    - jax 0.4.26 
+    - jedi 0.19.1 
+    - Jinja2 3.1.3 
+    - joblib 1.4.0 
+    - jsonschema 4.21.1 
+    - jsonschema_specifications 2023.12.1 
+    - jupyterlab_pygments 0.3.0 
+    - jupyter_client 8.6.1 
+    - jupyter_core 5.7.2 
+    - kiwisolver 1.4.5 
+    - kornia 0.7.2 
+    - kornia_rs 0.1.3 
+    - lazy_loader 0.4 
+    - lit 18.1.4 
+    - lxml 5.2.1 
+    - mapbox_earcut 1.0.1 
+    - markdown_it_py 3.0.0 
+    - MarkupSafe 2.1.5 
+    - matplotlib 3.8.4 
+    - matplotlib_inline 0.1.7 
+    - matrix_client 0.4.0 
+    - mdurl 0.1.2 
+    - mediapipe 0.10.11 
+    - mistune 3.0.2 
+    - ml_dtypes 0.4.0 
+    - mpmath 1.3.0 
+    - multidict 6.0.5 
+    - multiprocess 0.70.16 
+    - mypy_extensions 1.0.0 
+    - nbclient 0.10.0 
+    - nbconvert 7.16.3 
+    - nbformat 5.10.4 
+    - networkx 3.2.1 
+    - numpy 1.26.3 
+    - omegaconf 2.3.0 
+    - onnxruntime 1.17.3 
+    - onnxruntime_gpu 1.17.1 
+    - opencv_contrib_python 4.9.0.80 
+    - opencv_python 4.9.0.80 
+    - opencv_python_headless 4.9.0.80 
+    - open_clip_torch 2.24.0 
+    - opt_einsum 3.3.0 
+    - orjson 3.10.1 
+    - packaging 24.0 
+    - pandas 2.2.2 
+    - pandocfilters 1.5.1 
+    - parso 0.8.4 
+    - peft 0.10.0 
+    - pickleshare 0.7.5 
+    - piexif 1.1.3 
+    - pillow 10.2.0 
+    - pip 24.0 
+    - pipreqs 0.5.0 
+    - platformdirs 4.2.1 
+    - portalocker 2.8.2 
+    - prompt_toolkit 3.0.43 
+    - protobuf 3.20.3 
+    - psutil 5.9.8 
+    - pure_eval 0.2.2 
+    - pyarrow 16.0.0 
+    - pyarrow_hotfix 0.6 
+    - pycollada 0.8 
+    - pycparser 2.22 
+    - pycryptodome 3.20.0 
+    - pydantic 2.7.1 
+    - pydantic_core 2.18.2 
+    - pydub 0.25.1 
+    - PyGithub 2.3.0 
+    - pygments 2.17.2 
+    - PyJWT 2.8.0 
+    - PyNaCl 1.5.0 
+    - pyparsing 3.1.2 
+    - pyreadline3 3.4.1 
+    - pyre_extensions 0.0.30 
+    - python_dateutil 2.9.0.post0 
+    - python_multipart 0.0.9 
+    - pytz 2024.1 
+    - pywin32 306 
+    - PyYAML 6.0.1 
+    - pyzmq 26.0.2 
+    - py_cpuinfo 9.0.0 
+    - referencing 0.35.0 
+    - regex 2024.4.16 
+    - reportlab 4.2.0 
+    - requests 2.31.0 
+    - rich 13.7.1 
+    - rouge 1.0.1 
+    - rpds_py 0.18.0 
+    - Rtree 1.2.0 
+    - ruff 0.4.2 
+    - safetensors 0.4.3 
+    - scikit_image 0.23.2 
+    - scikit_learn 1.4.2 
+    - scipy 1.13.0 
+    - seaborn 0.13.2 
+    - segment_anything 1.0 
+    - semantic_version 2.10.0 
+    - sentencepiece 0.2.0 
+    - setuptools 65.5.0 
+    - shapely 2.0.4 
+    - shellingham 1.5.4 
+    - six 1.16.0 
+    - smmap 5.0.1 
+    - sniffio 1.3.1 
+    - sounddevice 0.4.6 
+    - soupsieve 2.5 
+    - stack_data 0.6.3 
+    - starlette 0.37.2 
+    - svg.path 6.3 
+    - svglib 1.5.1 
+    - sympy 1.12 
+    - tabulate 0.9.0 
+    - termcolor 2.4.0 
+    - thop 0.1.1.post2209072238 
+    - threadpoolctl 3.4.0 
+    - tifffile 2024.4.24 
+    - tiktoken 0.6.0 
+    - timm 0.9.16 
+    - tinycss2 1.3.0 
+    - tokenizers 0.15.2 
+    - tomli 2.0.1 
+    - tomlkit 0.12.0 
+    - toolz 0.12.1 
+    - torch 2.2.2+cu118 
+    - torchaudio 2.2.2+cu118 
+    - torchsde 0.2.6 
+    - torchvision 0.17.2+cu118 
+    - tornado 6.4 
+    - tqdm 4.66.2 
+    - traitlets 5.14.3 
+    - trampoline 0.1.2 
+    - transformers 4.38.2 
+    - trimesh 4.3.1 
+    - typer 0.12.3 
+    - typing_extensions 4.9.0 
+    - typing_inspect 0.9.0 
+    - tzdata 2024.1 
+    - ultralytics 8.2.3 
+    - urllib3 2.2.1 
+    - uvicorn 0.29.0 
+    - vhacdx 0.0.6 
+    - wcwidth 0.2.13 
+    - webencodings 0.5.1 
+    - websockets 11.0.3 
+    - wrapt 1.16.0 
+    - xatlas 0.0.9 
+    - xformers 0.0.25.post1+cu118 
+    - xxhash 3.4.1 
+    - yacs 0.1.8 
+    - yapf 0.40.2 
+    - yarg 0.1.9 
+    - yarl 1.9.4 
+    - zipp 3.18.1 
+    - zstandard 0.22.0 
+Git: C:\Program Files\Git\cmd\git.exe
+Shell: C:\WINDOWS\system32\cmd.exe
+Cache Path: D:\ComfyUI\.cache
+------------------------
+Engine Validator: 
+PyTorch: 2.2.2+cu118 C(11080)___
+OnnxRuntime: CPU
+------------------------
+Config: 
+Audience Type: 专家
+Engine: CUDA GPU 0: NVIDIA GeForce RTX 3050 Laptop GPU (4 GB) [0]
+VRAM Optimization: NormalVram [Auto]
+Port: 8188 [8188]
+XAttn Optimization: Xformers [Xformers]
+Upcast Attention: False [True]
+Precision: Auto [Auto]
+Text Encoder Precision: Auto [Auto]
+UNet Precision: Auto [Auto]
+VAE Precision: Auto [Auto]
+Preview Method: Auto [Auto]
+Smart Memory: True [True]
+Deterministic: False [False]
+Listen: False [False]
+Server Name:  []
+HF Offline Mode: False [False]
+Cuda Allocator Backend: CudaMallocAsync [CudaMallocAsync]
+Prevent Sysmem Fallback: False
+Extra Args: 
+------------------------
+Network Preferences: 
+Proxy Address: http://127.0.0.1:52797
+Proxy Git: True
+Proxy Pip: True
+Proxy Model Download: True
+Proxy Env: True
+Mirror Pypi: False
+Mirror Git: False
+Mirror ExtensionList: False
+Mirror Huggingface: False
+Github Acceleration: False
+------------------------
+Log: 
+## ComfyUI-Manager: installing dependencies done.
+** ComfyUI startup time: 2024-05-05 10:47:53.591320
+** Platform: Windows
+** Python version: 3.10.11 (tags/v3.10.11:7d4cc5a, Apr  5 2023, 00:38:17) [MSC v.1929 64 bit (AMD64)]
+** Python executable: D:\ComfyUI\venv\Scripts\python.exe
+** Log path: D:\ComfyUI\comfyui.log
+
+Prestartup times for custom nodes:
+
+   0.0 seconds:
+ 
+D:\ComfyUI\custom_nodes\rgthree-comfy
+
+   0.8 seconds:
+ 
+D:\ComfyUI\custom_nodes\ComfyUI-Manager
+
+Total VRAM 4096 MB, total RAM 14021 MB
+xformers version: 0.0.25.post1+cu118
+Set vram state to: NORMAL_VRAM
+Device: cuda:0 NVIDIA GeForce RTX 3050 Laptop GPU : cudaMallocAsync
+VAE dtype: torch.bfloat16
+disabling upcasting of attention
+Using xformers cross attention
+[34mComfy-Easy-Use v1.1.7: [92mLoaded[0m
+### Loading: ComfyUI-Impact-Pack (V5.5.2)
+### Loading: ComfyUI-Impact-Pack (Subpack: V0.4)
+### Loading: ComfyUI-Inspire-Pack (V0.69.2)
+[Impact Pack] Wildcards loading done.
+
+### Loading: ComfyUI-Manager (V2.26)
+### ComfyUI Revision: 2160 [72508a8d] | Released on '2024-05-04'
+Workspace manager - Openning file hash dict
+### Loading: Workspace Manager (V1.0.0)
+
+------------------------------------------
+[34mComfyroll Studio v1.76 : [92m 175 Nodes Loaded[0m
+
+------------------------------------------
+
+** For changes, please see patch notes at https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes/blob/main/Patch_Notes.md
+
+** For help, please see the wiki at https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes/wiki
+
+------------------------------------------
+
+[36;20m[comfyui_controlnet_aux] | INFO -> Using ckpts path: D:\ComfyUI\custom_nodes\comfyui_controlnet_aux\ckpts[0m
+[36;20m[comfyui_controlnet_aux] | INFO -> Using symlinks: False[0m
+[36;20m[comfyui_controlnet_aux] | INFO -> Using ort providers: ['CUDAExecutionProvider', 'DirectMLExecutionProvider', 'OpenVINOExecutionProvider', 'ROCMExecutionProvider', 'CPUExecutionProvider', 'CoreMLExecutionProvider'][0m
+D:\ComfyUI\custom_nodes\comfyui_controlnet_aux\node_wrappers\dwpose.py:26: UserWarning: DWPose: Onnxruntime not found or doesn't come with acceleration providers, switch to OpenCV with CPU device. DWPose might run very slowly
+  warnings.warn("DWPose: Onnxruntime not found or doesn't come with acceleration providers, switch to OpenCV with CPU device. DWPose might run very slowly")
+
+[92m[rgthree] Loaded 38 magnificent nodes.[0m
+
+[92m[rgthree] Will use rgthree's optimized recursive execution.[0m
+
+Import times for custom nodes:
+   0.0 seconds: D:\ComfyUI\custom_nodes\websocket_image_save.py
+   0.0 seconds: D:\ComfyUI\custom_nodes\AIGODLIKE-COMFYUI-TRANSLATION
+   0.0 seconds: D:\ComfyUI\custom_nodes\ComfyUI_ADV_CLIP_emb
+   0.0 seconds: D:\ComfyUI\custom_nodes\mikey_nodes
+   0.0 seconds: D:\ComfyUI\custom_nodes\ComfyUI-ELLA
+   0.0 seconds: D:\ComfyUI\custom_nodes\ComfyUI_UltimateSDUpscale
+   0.0 seconds: D:\ComfyUI\custom_nodes\ComfyUI_IPAdapter_plus
+   0.0 seconds: D:\ComfyUI\custom_nodes\rgthree-comfy
+   0.0 seconds: D:\ComfyUI\custom_nodes\comfyui-workspace-manager
+   0.1 seconds: D:\ComfyUI\custom_nodes\ComfyUI_Comfyroll_CustomNodes
+   0.1 seconds: D:\ComfyUI\custom_nodes\OneButtonPrompt
+   0.1 seconds: D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack
+   0.1 seconds: D:\ComfyUI\custom_nodes\comfyui_controlnet_aux
+   0.3 seconds: D:\ComfyUI\custom_nodes\ComfyUI-BrushNet
+   0.4 seconds: D:\ComfyUI\custom_nodes\ComfyUI-Easy-Use
+   0.5 seconds: D:\ComfyUI\custom_nodes\ComfyUI-Manager
+   0.6 seconds: D:\ComfyUI\custom_nodes\comfyui_segment_anything
+   1.7 seconds: D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack
+
+Starting server
+
+To see the GUI go to: http://127.0.0.1:8188
+FETCH DATA from: D:\ComfyUI\custom_nodes\ComfyUI-Manager\extension-node-map.json
+Exception in thread Thread-7 (<lambda>)
+:
+Traceback (most recent call last):
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 1025, in _wrap_create_connection
+    
+return await self._loop.create_connection(*args, **kwargs)
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1076, in create_connection
+    
+raise exceptions[0]
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 1060, in create_connection
+    
+sock = await self._connect_sock(
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 969, in _connect_sock
+    
+await self.sock_connect(sock, address)
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\proactor_events.py", line 709, in sock_connect
+    
+return await self._proactor.connect(sock, address)
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\windows_events.py", line 826, in _poll
+    
+value = callback(transferred, key, ov)
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\windows_events.py", line 613, in finish_connect
+    
+ov.getresult()
+
+ConnectionRefusedError
+: 
+[WinError 1225] 远程计算机拒绝网络连接。
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\threading.py", line 1016, in _bootstrap_inner
+    
+self.run()
+
+  File "<enhanced_experience vendors.sentry_sdk.integrations.threading>", line 72, in run
+  File "<enhanced_experience vendors.sentry_sdk._compat>", line 115, in reraise
+  File "<enhanced_experience vendors.sentry_sdk.integrations.threading>", line 70, in run
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\threading.py", line 953, in run
+    
+self._target(*self._args, **self._kwargs)
+
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Manager\glob\manager_server.py", line 1579, in <lambda>
+    
+threading.Thread(target=lambda: asyncio.run(default_cache_update())).start()
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\runners.py", line 44, in run
+    
+return loop.run_until_complete(main)
+
+  File "C:\Users\lele\AppData\Local\Programs\Python\Python310\lib\asyncio\base_events.py", line 649, in run_until_complete
+    
+return future.result()
+
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Manager\glob\manager_server.py", line 1576, in default_cache_update
+    
+await asyncio.gather(a, b, c, d)
+
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Manager\glob\manager_server.py", line 1564, in get_cache
+    
+json_obj = await core.get_data(uri, True)
+
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Manager\glob\manager_core.py", line 570, in get_data
+    
+async with session.get(uri) as resp:
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\client.py", line 1197, in __aenter__
+    self._resp = await self._coro
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\client.py", line 581, in _request
+    conn = await self._connector.connect(
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 544, in connect
+    
+proto = await self._create_connection(req, traces, timeout)
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 942, in _create_connection
+    
+_, proto = await self._create_proxy_connection(req, traces, timeout)
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 1282, in _create_proxy_connection
+    
+transport, proto = await self._create_direct_connection(
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 1257, in _create_direct_connection
+    
+raise last_exc
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 1226, in _create_direct_connection
+    
+transp, proto = await self._wrap_create_connection(
+
+  File "D:\ComfyUI\venv\lib\site-packages\aiohttp\connector.py", line 1033, in _wrap_create_connection
+    
+raise client_error(req.connection_key, exc) from exc
+
+aiohttp.client_exceptions
+.
+ClientProxyConnectionError
+: 
+Cannot connect to host 127.0.0.1:52797 ssl:default [远程计算机拒绝网络连接。]
+
+got prompt
+[32m[rgthree] Using rgthree's optimized recursive execution.[0m
+
+[32m[rgthree][0m First run patching recursive_output_delete_if_changed and recursive_will_execute.[0m
+
+[33m[rgthree] Note: [0mIf execution seems broken due to forward ComfyUI changes, you can disable the optimization from rgthree settings in ComfyUI.[0m
+
+model_type EPS
+Using xformers attention in VAE
+Using xformers attention in VAE
+clip missing: ['clip_l.logit_scale', 'clip_l.transformer.text_projection.weight']
+BrushNet model type: Loading SDXL
+BrushNet model file: 
+D:\ComfyUI\models\inpaint\brushnet\segmentation_mask_brushnet_ckpt_sdxl_v0\diffusion_pytorch_model.safetensors
+
+BrushNet model is loaded, SDXL: True
+
+Requested to load SDXLClipModel
+Loading 1 new model
+loading in lowvram mode 1197.2113885879517
+D:\ComfyUI\comfy\ldm\modules\attention.py:345: UserWarning: 1Torch was not compiled with flash attention. (Triggered internally at ..\aten\src\ATen\native\transformers\cuda\sdp_utils.cpp:263.)
+  out = torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, dropout_p=0.0, is_causal=False)
+Base model type: SDXL
+
+BrushNet image,
+ 
+torch.Size([1, 1024, 1024, 3])
+
+Requested to load AutoencoderKL
+Loading 1 new model
+got prompt
+BrushNet CL: image_latents shape =
+ 
+torch.Size([2, 4, 128, 128])
+ 
+interpolated_mask shape =
+ 
+torch.Size([2, 1, 128, 128])
+
+Requested to load SDXL
+Loading 1 new model
+loading in lowvram mode 593.7662467956543
+!!! Exception during processing!!! 'step'
+Traceback (most recent call last):
+  File "D:\ComfyUI\execution.py", line 151, in recursive_execute
+    output_data, output_ui = get_output_data(obj, input_data_all)
+  File "D:\ComfyUI\execution.py", line 81, in get_output_data
+    return_values = map_node_over_list(obj, input_data_all, obj.FUNCTION, allow_interrupt=True)
+  File "D:\ComfyUI\execution.py", line 74, in map_node_over_list
+    results.append(getattr(obj, func)(**slice_dict(input_data_all, i)))
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 120, in doit
+    return (self.sample(*args, **kwargs)[0],)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 114, in sample
+    return inspire_ksampler(model, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 33, in inspire_ksampler
+    samples = common.impact_sampling(
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\libs\common.py", line 14, in impact_sampling
+    return nodes.NODE_CLASS_MAPPINGS['RegionalSampler'].separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\special_samplers.py", line 307, in separated_sample
+    return separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 181, in separated_sample
+    res = sample_with_custom_noise(model, add_noise, seed, cfg, positive, negative, impact_sampler, sigmas, latent_image, noise=noise, callback=callback)
+    
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 137, in sample_with_custom_noise
+    samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image, noise_mask=noise_mask, callback=touched_callback, disable_pbar=disable_pbar, seed=noise_seed)
+
+  File "D:\ComfyUI\comfy\sample.py", line 42, in sample_custom
+    samples = comfy.samplers.sample(model, noise, positive, negative, cfg, model.load_device, sampler, sigmas, model_options=model.model_options, latent_image=latent_image, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+
+  File "D:\ComfyUI\comfy\samplers.py", line 663, in sample
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 650, in sample
+    output = self.inner_sample(noise, latent_image, device, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 629, in inner_sample
+    samples = sampler.sample(self, sigmas, extra_args, callback, noise, latent_image, denoise_mask, disable_pbar)
+  File "D:\ComfyUI\comfy\samplers.py", line 534, in sample
+    samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, callback=k_callback, disable=disable_pbar, **self.extra_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 79, in sample_dpmpp_sde
+    return k_diffusion_sampling.sample_dpmpp_2m_sde_gpu(model, x, sigmas, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 715, in sample_dpmpp_2m_sde_gpu
+    return sample_dpmpp_2m_sde(model, x, sigmas, extra_args=extra_args, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler, solver_type=solver_type)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 618, in sample_dpmpp_2m_sde
+    denoised = model(x, sigmas[i] * s_in, **extra_args)
+  File "D:\ComfyUI\comfy\samplers.py", line 272, in __call__
+    out = self.inner_model(x, sigma, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 616, in __call__
+    return self.predict_noise(*args, **kwargs)
+  File "D:\ComfyUI\comfy\samplers.py", line 619, in predict_noise
+    return sampling_function(self.inner_model, x, timestep, self.conds.get("negative", None), self.conds.get("positive", None), self.cfg, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 258, in sampling_function
+    out = calc_cond_batch(model, conds, x, timestep, model_options)
+  File "D:\ComfyUI\comfy\samplers.py", line 218, in calc_cond_batch
+    output = model.apply_model(input_x, timestep_, **c).chunk(batch_chunks)
+  File "D:\ComfyUI\comfy\model_base.py", line 97, in apply_model
+    model_output = self.diffusion_model(xc, t, context=context, control=control, transformer_options=transformer_options, **extra_conds).float()
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 536, in forward_patched_by_brushnet
+    input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 413, in brushnet_inference
+    step = mp['step']
+KeyError: 'step'
+
+Prompt executed in 24.17 seconds
+[32m[rgthree] Using rgthree's optimized recursive execution.[0m
+!!! Exception during processing!!! 'step'
+Traceback (most recent call last):
+  File "D:\ComfyUI\execution.py", line 151, in recursive_execute
+    output_data, output_ui = get_output_data(obj, input_data_all)
+  File "D:\ComfyUI\execution.py", line 81, in get_output_data
+    return_values = map_node_over_list(obj, input_data_all, obj.FUNCTION, allow_interrupt=True)
+  File "D:\ComfyUI\execution.py", line 74, in map_node_over_list
+    results.append(getattr(obj, func)(**slice_dict(input_data_all, i)))
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 120, in doit
+    return (self.sample(*args, **kwargs)[0],)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 114, in sample
+    return inspire_ksampler(model, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 33, in inspire_ksampler
+    samples = common.impact_sampling(
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\libs\common.py", line 14, in impact_sampling
+    return nodes.NODE_CLASS_MAPPINGS['RegionalSampler'].separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\special_samplers.py", line 307, in separated_sample
+    return separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 181, in separated_sample
+    res = sample_with_custom_noise(model, add_noise, seed, cfg, positive, negative, impact_sampler, sigmas, latent_image, noise=noise, callback=callback)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 137, in sample_with_custom_noise
+    samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image, noise_mask=noise_mask, callback=touched_callback, disable_pbar=disable_pbar, seed=noise_seed)
+  File "D:\ComfyUI\comfy\sample.py", line 42, in sample_custom
+    samples = comfy.samplers.sample(model, noise, positive, negative, cfg, model.load_device, sampler, sigmas, model_options=model.model_options, latent_image=latent_image, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 663, in sample
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 650, in sample
+    output = self.inner_sample(noise, latent_image, device, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 629, in inner_sample
+    samples = sampler.sample(self, sigmas, extra_args, callback, noise, latent_image, denoise_mask, disable_pbar)
+  File "D:\ComfyUI\comfy\samplers.py", line 534, in sample
+    samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, callback=k_callback, disable=disable_pbar, **self.extra_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 79, in sample_dpmpp_sde
+    return k_diffusion_sampling.sample_dpmpp_2m_sde_gpu(model, x, sigmas, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 715, in sample_dpmpp_2m_sde_gpu
+    return sample_dpmpp_2m_sde(model, x, sigmas, extra_args=extra_args, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler, solver_type=solver_type)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 618, in sample_dpmpp_2m_sde
+    denoised = model(x, sigmas[i] * s_in, **extra_args)
+  File "D:\ComfyUI\comfy\samplers.py", line 272, in __call__
+    out = self.inner_model(x, sigma, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 616, in __call__
+    return self.predict_noise(*args, **kwargs)
+  File "D:\ComfyUI\comfy\samplers.py", line 619, in predict_noise
+    return sampling_function(self.inner_model, x, timestep, self.conds.get("negative", None), self.conds.get("positive", None), self.cfg, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 258, in sampling_function
+    out = calc_cond_batch(model, conds, x, timestep, model_options)
+  File "D:\ComfyUI\comfy\samplers.py", line 218, in calc_cond_batch
+    output = model.apply_model(input_x, timestep_, **c).chunk(batch_chunks)
+  File "D:\ComfyUI\comfy\model_base.py", line 97, in apply_model
+    model_output = self.diffusion_model(xc, t, context=context, control=control, transformer_options=transformer_options, **extra_conds).float()
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 536, in forward_patched_by_brushnet
+    input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 413, in brushnet_inference
+    step = mp['step']
+KeyError: 'step'
+
+Prompt executed in 0.93 seconds
+got prompt
+[32m[rgthree] Using rgthree's optimized recursive execution.[0m
+
+!!! Exception during processing!!! 'step'
+Traceback (most recent call last):
+  File "D:\ComfyUI\execution.py", line 151, in recursive_execute
+    output_data, output_ui = get_output_data(obj, input_data_all)
+  File "D:\ComfyUI\execution.py", line 81, in get_output_data
+    return_values = map_node_over_list(obj, input_data_all, obj.FUNCTION, allow_interrupt=True)
+  File "D:\ComfyUI\execution.py", line 74, in map_node_over_list
+    results.append(getattr(obj, func)(**slice_dict(input_data_all, i)))
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 120, in doit
+    return (self.sample(*args, **kwargs)[0],)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 114, in sample
+    return inspire_ksampler(model, noise_seed, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\a1111_compat.py", line 33, in inspire_ksampler
+    samples = common.impact_sampling(
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Inspire-Pack\inspire\libs\common.py", line 14, in impact_sampling
+    return nodes.NODE_CLASS_MAPPINGS['RegionalSampler'].separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\special_samplers.py", line 307, in separated_sample
+    return separated_sample(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 181, in separated_sample
+    res = sample_with_custom_noise(model, add_noise, seed, cfg, positive, negative, impact_sampler, sigmas, latent_image, noise=noise, callback=callback)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 137, in sample_with_custom_noise
+    samples = comfy.sample.sample_custom(model, noise, cfg, sampler, sigmas, positive, negative, latent_image, noise_mask=noise_mask, callback=touched_callback, disable_pbar=disable_pbar, seed=noise_seed)
+  File "D:\ComfyUI\comfy\sample.py", line 42, in sample_custom
+    samples = comfy.samplers.sample(model, noise, positive, negative, cfg, model.load_device, sampler, sigmas, model_options=model.model_options, latent_image=latent_image, denoise_mask=noise_mask, callback=callback, disable_pbar=disable_pbar, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 663, in sample
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 650, in sample
+    output = self.inner_sample(noise, latent_image, device, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 629, in inner_sample
+    samples = sampler.sample(self, sigmas, extra_args, callback, noise, latent_image, denoise_mask, disable_pbar)
+  File "D:\ComfyUI\comfy\samplers.py", line 534, in sample
+    samples = self.sampler_function(model_k, noise, sigmas, extra_args=extra_args, callback=k_callback, disable=disable_pbar, **self.extra_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-Impact-Pack\modules\impact\impact_sampling.py", line 79, in sample_dpmpp_sde
+    return k_diffusion_sampling.sample_dpmpp_2m_sde_gpu(model, x, sigmas, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 715, in sample_dpmpp_2m_sde_gpu
+    return sample_dpmpp_2m_sde(model, x, sigmas, extra_args=extra_args, callback=callback, disable=disable, eta=eta, s_noise=s_noise, noise_sampler=noise_sampler, solver_type=solver_type)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\utils\_contextlib.py", line 115, in decorate_context
+    return func(*args, **kwargs)
+  File "D:\ComfyUI\comfy\k_diffusion\sampling.py", line 618, in sample_dpmpp_2m_sde
+    denoised = model(x, sigmas[i] * s_in, **extra_args)
+  File "D:\ComfyUI\comfy\samplers.py", line 272, in __call__
+    out = self.inner_model(x, sigma, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 616, in __call__
+    return self.predict_noise(*args, **kwargs)
+  File "D:\ComfyUI\comfy\samplers.py", line 619, in predict_noise
+    return sampling_function(self.inner_model, x, timestep, self.conds.get("negative", None), self.conds.get("positive", None), self.cfg, model_options=model_options, seed=seed)
+  File "D:\ComfyUI\comfy\samplers.py", line 258, in sampling_function
+    out = calc_cond_batch(model, conds, x, timestep, model_options)
+  File "D:\ComfyUI\comfy\samplers.py", line 218, in calc_cond_batch
+    output = model.apply_model(input_x, timestep_, **c).chunk(batch_chunks)
+  File "D:\ComfyUI\comfy\model_base.py", line 97, in apply_model
+    model_output = self.diffusion_model(xc, t, context=context, control=control, transformer_options=transformer_options, **extra_conds).float()
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+  File "D:\ComfyUI\venv\lib\site-packages\torch\nn\modules\module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 536, in forward_patched_by_brushnet
+    input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+  File "D:\ComfyUI\custom_nodes\ComfyUI-BrushNet\brushnet_nodes.py", line 413, in brushnet_inference
+    step = mp['step']
+KeyError: 'step'
+
+Prompt executed in 0.98 seconds
+------------------------
+Fault Traceback: 
+Not Available

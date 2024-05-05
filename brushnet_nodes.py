@@ -293,9 +293,9 @@ class BrushNet:
 
         # apply patch to code
 
-        if nodes.common_ksampler.__doc__ is None or 'BrushNet' not in nodes.common_ksampler.__doc__:
-            nodes.original_common_ksampler = nodes.common_ksampler
-            nodes.common_ksampler = modified_common_ksampler
+        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample .__doc__:
+            comfy.samplers.original_sample = comfy.samplers.sample
+            comfy.samplers.sample = modified_sample
 
         # apply patch to model
 
@@ -369,7 +369,7 @@ class BlendInpaint:
 def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
                              disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
     '''
-    Modified by BrushNet nodes
+    #Modified by BrushNet nodes
     '''
     latent_image = latent["samples"]
     if disable_noise:
@@ -406,6 +406,22 @@ def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, p
     out["samples"] = samples
     return (out, )
 
+
+def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, 
+           latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
+    '''
+    Modified by BrushNet nodes
+    '''
+    cfg_guider = comfy.samplers.CFGGuider(model)
+    cfg_guider.set_conds(positive, negative)
+    cfg_guider.set_cfg(cfg)
+
+    to = add_model_patch_option(model)
+    to['model_patch']['all_sigmas'] = sigmas
+    to['model_patch']['cfg'] = cfg
+       
+    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
+
 def brushnet_inference(x, timesteps, transformer_options):
     if 'model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch in transformer_options')
@@ -423,9 +439,16 @@ def brushnet_inference(x, timesteps, transformer_options):
         pe2 = mp['brushnet_prompt2']
         ack = mp['brushnet_add_embeds']
         ack2 = mp['brushnet_add_embeds2']
-        step = mp['step']
-        total_steps = mp['total_steps']
         cfg = mp['cfg']
+
+        all_sigmas = mp['all_sigmas']
+        sigma = transformer_options['sigmas'][0].item()
+        total_steps = all_sigmas.shape[0]
+        step = ((all_sigmas - sigma).abs() < 1e-3).nonzero(as_tuple=True)[0]
+        if len(step) == 0:
+            step = 0
+        else:
+            step = (all_sigmas == sigma).nonzero(as_tuple=True)[0].item()
 
         added_cond_kwargs = {}
 
