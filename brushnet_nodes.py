@@ -9,8 +9,8 @@ import sys
 comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.append(comfy_parent_dir)
 import comfy
-import nodes
-import latent_preview
+#import nodes
+#import latent_preview
 
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
@@ -366,45 +366,45 @@ class BlendInpaint:
 
 
 # Model needs current step number at inference step. It is possible to write a custom KSampler but I'd like to use ComfyUI's one.
-def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
-                             disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
-    '''
-    #Modified by BrushNet nodes
-    '''
-    latent_image = latent["samples"]
-    if disable_noise:
-        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
-    else:
-        batch_inds = latent["batch_index"] if "batch_index" in latent else None
-        noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
-
-    noise_mask = None
-    if "noise_mask" in latent:
-        noise_mask = latent["noise_mask"]
-
-    #######################################################################################
-    #
-    latent_preview_callback = latent_preview.prepare_callback(model, steps)
-
-    to = add_model_patch_option(model)
-    to['model_patch']['step'] = 0
-    to['model_patch']['total_steps'] = steps
-    to['model_patch']['cfg'] = cfg
-
-    def callback(step, x0, x, total_steps):
-        to['model_patch']['step'] = step + 1
-        latent_preview_callback(steps, x0, x, total_steps)
-    #
-    #######################################################################################
-    
-    disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
-    samples = comfy.sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
-                                  denoise=denoise, disable_noise=disable_noise, start_step=start_step, last_step=last_step,
-                                  force_full_denoise=force_full_denoise, noise_mask=noise_mask, callback=callback, 
-                                  disable_pbar=disable_pbar, seed=seed)
-    out = latent.copy()
-    out["samples"] = samples
-    return (out, )
+#def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
+#                             disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
+#    '''
+#    #Modified by BrushNet nodes
+#    '''
+#   latent_image = latent["samples"]
+#    if disable_noise:
+#        noise = torch.zeros(latent_image.size(), dtype=latent_image.dtype, layout=latent_image.layout, device="cpu")
+#    else:
+#        batch_inds = latent["batch_index"] if "batch_index" in latent else None
+#        noise = comfy.sample.prepare_noise(latent_image, seed, batch_inds)
+#
+#    noise_mask = None
+#    if "noise_mask" in latent:
+#        noise_mask = latent["noise_mask"]
+#
+#    #######################################################################################
+#    #
+#    latent_preview_callback = latent_preview.prepare_callback(model, steps)
+#
+#    to = add_model_patch_option(model)
+#    to['model_patch']['step'] = 0
+#    to['model_patch']['total_steps'] = steps
+#    to['model_patch']['cfg'] = cfg
+#
+#    def callback(step, x0, x, total_steps):
+#        to['model_patch']['step'] = step + 1
+#        latent_preview_callback(steps, x0, x, total_steps)
+#    #
+#    #######################################################################################
+#    
+#    disable_pbar = not comfy.utils.PROGRESS_BAR_ENABLED
+#    samples = comfy.sample.sample(model, noise, steps, cfg, sampler_name, scheduler, positive, negative, latent_image,
+#                                  denoise=denoise, disable_noise=disable_noise, start_step=start_step, last_step=last_step,
+#                                  force_full_denoise=force_full_denoise, noise_mask=noise_mask, callback=callback, 
+#                                  disable_pbar=disable_pbar, seed=seed)
+#    out = latent.copy()
+#    out["samples"] = samples
+#    return (out, )
 
 
 def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, 
