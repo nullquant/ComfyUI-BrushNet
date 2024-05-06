@@ -20,12 +20,12 @@ Apr 11, 2024. Initial commit.
 
 - [x] BrushNet SDXL
 - [x] PowerPaint v2
-- [~] Compatibility with `jank HiDiffusion` and similar nodes
+- [ ] Compatibility with `jank HiDiffusion` and similar nodes
 - [ ] Image batch
 
 ## Installation
 
-Clone the repo into the custom_nodes directory and install the requirements:
+Clone the repo into the `custom_nodes` directory and install the requirements:
 
 ```
 git clone https://github.com/nullquant/ComfyUI-BrushNet.git
@@ -59,12 +59,12 @@ Below is an example for the intended workflow. The [workflow](example/BrushNet_b
 
 ### Parameters
 
-- scale, defaults to 1.0: The "strength" of BrushNet. The outputs of the BrushNet are multiplied by `scale` before they are added to the residual in the original `unet`.
-- start_at, defaults to 0: step at which the BrushNet starts applying.
-- end_at, defaults to 10000: step at which the BrushNet stops applying.
-- CLIP: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
-- fitting: PowerPaint fitting degree.
-- function: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.
+- `scale`, defaults to 1.0: The "strength" of BrushNet. The outputs of the BrushNet are multiplied by `scale` before they are added to the residual in the original unet.
+- `start_at`, defaults to 0: step at which the BrushNet starts applying.
+- `end_at`, defaults to 10000: step at which the BrushNet stops applying.
+- `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
+- `fitting`: PowerPaint fitting degree.
+- `function`: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.
 
 When using certain network functions, the authors of PowerPaint recommend adding phrases to the prompt:
 
