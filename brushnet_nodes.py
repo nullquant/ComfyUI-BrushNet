@@ -265,26 +265,26 @@ class BrushNet:
 
         # prepare embeddings
 
-        prompt_embeds = positive[0][0][0].to(brushnet['brushnet'].device)
-        negative_prompt_embeds = negative[0][0][0].to(brushnet['brushnet'].device)
+        prompt_embeds = positive[0][0][0].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
+        negative_prompt_embeds = negative[0][0][0].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
 
         if len(positive[0]) > 1 and 'pooled_output' in positive[0][1] and positive[0][1]['pooled_output'] is not None:
-            add_text_embeds = positive[0][1]['pooled_output'].to(brushnet['brushnet'].device)
+            add_text_embeds = positive[0][1]['pooled_output'].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         else:
             print('BrushNet: positive conditioning has not pooled_output')
             if is_SDXL:
                 print('BrushNet will not produce correct results')
-            add_text_embeds = torch.empty([2, 1280], device=brushnet['brushnet'].device)
+            add_text_embeds = torch.empty([2, 1280], device=brushnet['brushnet'].device).to(dtype=torch_dtype)
 
         if len(negative[0]) > 1 and 'pooled_output' in negative[0][1] and negative[0][1]['pooled_output'] is not None:
-            negative_pooled_prompt_embeds = negative[0][1]['pooled_output'].to(brushnet['brushnet'].device)
+            negative_pooled_prompt_embeds = negative[0][1]['pooled_output'].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         else:
             print('BrushNet: negative conditioning has not pooled_output')
             if is_SDXL:
                 print('BrushNet will not produce correct results')
-            negative_pooled_prompt_embeds = torch.empty([1, add_text_embeds.shape[1]], device=brushnet['brushnet'].device)
+            negative_pooled_prompt_embeds = torch.empty([1, add_text_embeds.shape[1]], device=brushnet['brushnet'].device).to(dtype=torch_dtype)
 
-        add_time_ids = torch.FloatTensor([[height, width, 0., 0., height, width]]).to(brushnet['brushnet'].device)
+        add_time_ids = torch.FloatTensor([[height, width, 0., 0., height, width]]).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         negative_add_time_ids = add_time_ids
 
         prompt_embeds2 = torch.cat([negative_prompt_embeds, prompt_embeds], dim=0)
@@ -356,7 +356,7 @@ class BlendInpaint:
                 original.shape[0], 
                 original.shape[1],
             )
-        )
+        ).to(original.device).to(original.dtype)
 
         ret = []
         for result in inpaint.permute(0, 2, 3, 1):
@@ -416,9 +416,13 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
     cfg_guider.set_conds(positive, negative)
     cfg_guider.set_cfg(cfg)
 
+    #######################################################################################
+    #
     to = add_model_patch_option(model)
     to['model_patch']['all_sigmas'] = sigmas
     to['model_patch']['cfg'] = cfg
+    #
+    #######################################################################################
        
     return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
 
@@ -471,10 +475,10 @@ def brushnet_inference(x, timesteps, transformer_options):
             if x.shape[0] > 2:
                 if step == 0:
                     print('BrushNet inference: latent batch ', x.shape[0] // 2)
-                conditioning_latents = torch.cat([cl2] * (x.shape[0] // 2), dim=0).to(x.device)
+                conditioning_latents = torch.cat([cl2] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
                 prompt_embeds = pe2
-                added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(x.device)
-                added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(x.device)
+                added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
+                added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
             else:
                 conditioning_latents = cl2
                 prompt_embeds = pe2
@@ -482,10 +486,10 @@ def brushnet_inference(x, timesteps, transformer_options):
         elif x.shape[0] > 1:
             if step == 0:
                 print('BrushNet inference: latent batch ', x.shape[0])
-            conditioning_latents = torch.cat([cl] * x.shape[0], dim=0).to(x.device)
+            conditioning_latents = torch.cat([cl] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
             prompt_embeds = pe
-            added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(x.device)
-            added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(x.device)
+            added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
+            added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
         else:
             conditioning_latents = cl
             prompt_embeds = pe
@@ -499,7 +503,7 @@ def brushnet_inference(x, timesteps, transformer_options):
                     x.shape[2], 
                     x.shape[3],
                 ), mode='bicubic',
-            ).to(x.device).to(x.dtype)
+            ).to(torch_dtype).to(brushnet.device)
 
         if check and step == 0:
             print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
@@ -514,10 +518,10 @@ def brushnet_inference(x, timesteps, transformer_options):
 
         cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
 
-        return brushnet(x.to(brushnet.device),
+        return brushnet(x.to(torch_dtype).to(brushnet.device),
                         encoder_hidden_states=prompt_embeds,
                         brushnet_cond=conditioning_latents,
-                        timestep = timesteps.to(brushnet.device),
+                        timestep = timesteps.to(torch_dtype).to(brushnet.device),
                         conditioning_scale=cond_scale,
                         guess_mode=False,
                         added_cond_kwargs=added_cond_kwargs,
