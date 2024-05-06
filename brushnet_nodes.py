@@ -17,6 +17,8 @@ from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 from .brushnet.brushnet import BrushNetModel
 from .brushnet.brushnet_ca import BrushNetModel as PowerPaintModel
 
+from .brushnet.powerpaint_utils import TokenizerWrapper, add_tokens
+
 import types
 from typing import Tuple
 import warnings
@@ -38,7 +40,7 @@ class BrushNetLoader:
     def INPUT_TYPES(s):
         return {"required":
                     {    
-                        "brushnet": (inpaint_safetensors(), ),
+                        "brushnet": (get_files_with_extension('inpaint'), ),
                      },
                 }
 
@@ -82,7 +84,10 @@ class BrushNetLoader:
                 brushnet_config = BrushNetModel.load_config(brushnet_config_file)
                 brushnet_model = BrushNetModel.from_config(brushnet_config)
 
-        print("BrushNet model file:", brushnet_file)
+        if is_PP:
+            print("PowerPaint model file:", brushnet_file)
+        else:
+            print("BrushNet model file:", brushnet_file)
 
         brushnet_model = load_checkpoint_and_dispatch(
             brushnet_model,
@@ -97,47 +102,191 @@ class BrushNetLoader:
 
         if is_PP: 
             print("PowerPaint model is loaded")
+        elif is_SDXL:
+            print("BrushNet SDXL model is loaded")
         else:
-            print("BrushNet model is loaded, SDXL:", is_SDXL)
+            print("BrushNet SD1.5 model is loaded")
 
         return ({"brushnet": brushnet_model, "SDXL": is_SDXL, "PP": is_PP},)
 
+
+class PowerPaintCLIPLoader:
+
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required":
+                    {    
+                        "base": (get_files_with_extension('clip'), ),
+                        "powerpaint": (get_files_with_extension('inpaint', ['bin']), ),
+                     },
+                }
+
+    CATEGORY = "inpaint"
+    RETURN_TYPES = ("CLIP",)
+    RETURN_NAMES = ("clip",)
+
+    FUNCTION = "ppclip_loading"
+
+    def ppclip_loading(self, base, powerpaint):
+        base_CLIP_file = os.path.join(folder_paths.models_dir, "clip", base)
+        pp_CLIP_file = os.path.join(folder_paths.models_dir, "inpaint", powerpaint)
+
+        pp_clip = comfy.sd.load_clip(ckpt_paths=[base_CLIP_file])
+
+        print('PowerPaint base CLIP file: ', base_CLIP_file)
+
+        pp_tokenizer = TokenizerWrapper(pp_clip.tokenizer.clip_l.tokenizer)
+        pp_text_encoder = pp_clip.patcher.model.clip_l.transformer
+
+        add_tokens(
+            tokenizer = pp_tokenizer,
+            text_encoder = pp_text_encoder,
+            placeholder_tokens = ["P_ctxt", "P_shape", "P_obj"],
+            initialize_tokens = ["a", "a", "a"],
+            num_vectors_per_token = 10,
+        )
+
+        pp_text_encoder.load_state_dict(torch.load(pp_CLIP_file), strict=False)
+
+        print('PowerPaint CLIP file: ', base_CLIP_file)
+
+        pp_clip.tokenizer.clip_l.tokenizer = pp_tokenizer
+        pp_clip.patcher.model.clip_l.transformer = pp_text_encoder
+
+        return (pp_clip,)
     
-def inpaint_safetensors():
-    inpaint_path = os.path.join(folder_paths.models_dir, 'inpaint')
-    brushnet_path = os.path.join(inpaint_path, 'brushnet')
-    abs_list = []
-    for x in os.walk(inpaint_path):
-        for name in x[2]:
-            if 'safetensors' in name:
-                abs_list.append(os.path.join(x[0], name))
-    names = []
-    for x in abs_list:
-        remain = x
-        y = ''
-        while remain != inpaint_path:
-            remain, folder = os.path.split(remain)
-            if len(y) > 0:
-                y = os.path.join(folder, y)
-            else:
-                y = folder
-        names.append(y)     
-    return names
 
-def brushnet_blocks(sd):
-    brushnet_down_block = 0
-    brushnet_mid_block = 0
-    brushnet_up_block = 0
-    for key in sd:
-        if 'brushnet_down_block' in key:
-            brushnet_down_block += 1
-        if 'brushnet_mid_block' in key:
-            brushnet_mid_block += 1        
-        if 'brushnet_up_block' in key:
-            brushnet_up_block += 1
-    return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, len(sd))
+class PowerPaint:
 
+    @classmethod
+    def INPUT_TYPES(s):
+        return {"required":
+                    {    
+                        "model": ("MODEL",),
+                        "vae": ("VAE", ),
+                        "image": ("IMAGE",),
+                        "mask": ("MASK",),
+                        "powerpaint": ("BRMODEL", ),
+                        "clip": ("CLIP", ),
+                        "positive": ("CONDITIONING", ),
+                        "negative": ("CONDITIONING", ),
+                        "fitting" : ("FLOAT", {"default": 1.0, "min": 0.3, "max": 1.0}),
+                        "function": (['text guided', 'shape guided', 'object removal', 'context aware', 'image outpainting'], ),
+                        "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
+                        "start_at": ("INT", {"default": 0, "min": 0, "max": 10000}),
+                        "end_at": ("INT", {"default": 10000, "min": 0, "max": 10000}),
+                     },
+        }
+    
+    CATEGORY = "inpaint"
+    RETURN_TYPES = ("MODEL","CONDITIONING","CONDITIONING","LATENT",)
+    RETURN_NAMES = ("model","positive","negative","latent",)
 
+    FUNCTION = "model_update"
+
+    def model_update(self, model, vae, image, mask, powerpaint, clip, positive, negative, fitting, function, scale, start_at, end_at):
+
+        is_SDXL, is_PP = check_compatibilty(model, powerpaint)
+        if not is_PP:
+            raise Exception("BrushNet model was loaded, please use BrushNet node")  
+
+        # Make a copy of the model so that we're not patching it everywhere in the workflow.
+        model = model.clone()
+
+        # prepare image and mask
+        # no batches for original image and mask
+        masked_image, mask = prepare_image(image, mask)
+
+        #width = masked_image.shape[2]
+        #height = masked_image.shape[1]
+
+        if hasattr(model.model.model_config, 'latent_format') and hasattr(model.model.model_config.latent_format, 'scale_factor'):
+            scaling_factor = model.model.model_config.latent_format.scale_factor
+        else:
+            scaling_factor = sd15_scaling_factor
+
+        # prepare conditioning latents
+        conditioning_latents, conditioning_latents2 = get_image_latents(masked_image, mask, vae, scaling_factor)
+        conditioning_latents = conditioning_latents.to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
+        conditioning_latents2 = conditioning_latents2.to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
+
+        # prepare embeddings
+
+        if function == "object removal":
+            promptA = "P_ctxt"
+            promptB = "P_ctxt"
+            negative_promptA = "P_obj"
+            negative_promptB = "P_obj"
+            print('You should add to positive prompt: "empty scene blur"')
+            #positive = positive + " empty scene blur"
+        elif function == "context aware":
+            promptA = "P_ctxt"
+            promptB = "P_ctxt"
+            negative_promptA = ""
+            negative_promptB = ""
+            #positive = positive + " empty scene"
+            print('You should add to positive prompt: "empty scene"')
+        elif function == "shape guided":
+            promptA = "P_shape"
+            promptB = "P_ctxt"
+            negative_promptA = "P_shape"
+            negative_promptB = "P_ctxt"
+        elif function == "image outpainting":
+            promptA = "P_ctxt"
+            promptB = "P_ctxt"
+            negative_promptA = "P_obj"
+            negative_promptB = "P_obj"
+            #positive = positive + " empty scene"
+            print('You should add to positive prompt: "empty scene"')
+        else:
+            promptA = "P_obj"
+            promptB = "P_obj"
+            negative_promptA = "P_obj"
+            negative_promptB = "P_obj"
+
+        tokens = clip.tokenize(promptA)
+        prompt_embedsA = clip.encode_from_tokens(tokens, return_pooled=False)
+
+        tokens = clip.tokenize(negative_promptA)
+        negative_prompt_embedsA = clip.encode_from_tokens(tokens, return_pooled=False)
+
+        tokens = clip.tokenize(promptB)
+        prompt_embedsB = clip.encode_from_tokens(tokens, return_pooled=False)
+
+        tokens = clip.tokenize(negative_promptB)
+        negative_prompt_embedsB = clip.encode_from_tokens(tokens, return_pooled=False)
+
+        prompt_embeds_pp = (prompt_embedsA * fitting + (1.0 - fitting) * prompt_embedsB).to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
+        negative_prompt_embeds = (negative_prompt_embedsA * fitting + (1.0 - fitting) * negative_prompt_embedsB).to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
+
+        prompt_embeds_pp2 = torch.cat([negative_prompt_embeds, prompt_embeds_pp])
+
+        # apply patch to code
+
+        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample.__doc__:
+            comfy.samplers.original_sample = comfy.samplers.sample
+            comfy.samplers.sample = modified_sample
+
+        # apply patch to model
+
+        brushnet_conditioning_scale = scale
+        control_guidance_start = start_at
+        control_guidance_end = end_at
+
+        add_brushnet_patch(model, 
+                           powerpaint['brushnet'],
+                           conditioning_latents, 
+                           conditioning_latents2, 
+                           (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
+                           prompt_embeds_pp, None, None,
+                           prompt_embeds_pp2, None, None)
+
+        latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=powerpaint['brushnet'].device)
+        #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
+
+        return (model, positive, negative, {"samples":latent},)
+
+    
 class BrushNet:
 
     @classmethod
@@ -152,13 +301,9 @@ class BrushNet:
                         "positive": ("CONDITIONING", ),
                         "negative": ("CONDITIONING", ),
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
-                        "start_at": ("FLOAT", {"default": 0.0, "min": 0.0, "max": 1.0}),
-                        "end_at": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 1.0}),
+                        "start_at": ("INT", {"default": 0, "min": 0, "max": 10000}),
+                        "end_at": ("INT", {"default": 10000, "min": 0, "max": 10000}),
                      },
-                "optional": 
-                    {
-                        "clip": ("PPCLIP",),
-                    },
         }
 
     CATEGORY = "inpaint"
@@ -169,58 +314,20 @@ class BrushNet:
 
     def model_update(self, model, vae, image, mask, brushnet, positive, negative, scale, start_at, end_at):
 
-        # Make a copy of the model so that we're not patching it everywhere in
-        # the workflow.
+        is_SDXL, is_PP = check_compatibilty(model, brushnet)
+
+        if is_PP:
+            raise Exception("PowerPaint model was loaded, please use PowerPaint node")  
+
+        # Make a copy of the model so that we're not patching it everywhere in the workflow.
         model = model.clone()
 
-        is_SDXL = False
-        if isinstance(model.model.model_config, comfy.supported_models.SD15):
-            print('Base model type: SD1.5')
-            is_SDXL = False
-            if brushnet["SDXL"]:
-                raise Exception("Base model is SD15, but BrushNet is SDXL type")  
-            if brushnet["PP"]:
-                raise Exception("PowerPaint model is not yet supported")  
-        elif isinstance(model.model.model_config, comfy.supported_models.SDXL):
-            print('Base model type: SDXL')
-            is_SDXL = True
-            if not brushnet["SDXL"]:
-                raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
-            #raise Exception("SDXL is not implemented yet")
-        else:
-            print('Base model type: ', type(model.model.model_config))
-            raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
-        
         # prepare image and mask
         # no batches for original image and mask
+        masked_image, mask = prepare_image(image, mask)
 
-        if len(image.shape) < 4:
-            # image tensor shape should be [B, H, W, C], but batch somehow is missing
-            image = image[None,:,:,:]
-        elif image.shape[0] > 1:
-            # batch > 1, take first image
-            image = image[0][None,:,:,:]   
-        
-        if len(mask.shape) > 3:
-            # mask tensor shape should be [B, H, W] but we get [B, H, W, C], image may be?
-            # take first mask, red channel
-            mask = (mask[0,:,:,0])[None,:,:]
-        elif len(mask.shape) < 3:
-            # mask tensor shape should be [B, H, W] but batch somehow is missing
-            mask = mask[None,:,:]
-        elif mask.shape[0] > 1:
-            # batch > 1, take first mask    
-            mask = mask[0][None,:,:]  
-
-        width = image.shape[2]
-        height = image.shape[1]
-
-        print("BrushNet image,", image.shape)
-
-        if mask.shape[2] != width or mask.shape[1] != height:
-            raise Exception("Image and mask should be the same size")
-
-        masked_image = image * (1.0 - mask[:,:,:,None])
+        width = masked_image.shape[2]
+        height = masked_image.shape[1]
 
         if hasattr(model.model.model_config, 'latent_format') and hasattr(model.model.model_config.latent_format, 'scale_factor'):
             scaling_factor = model.model.model_config.latent_format.scale_factor
@@ -230,38 +337,9 @@ class BrushNet:
             scaling_factor = sd15_scaling_factor
 
         # prepare conditioning latents
-
-        with torch.no_grad():
-            processed_image = masked_image.to(vae.device)
-            processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
-
-            image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
-            image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
-
-            processed_mask = 1. - mask[None,:,:,:]
-            interpolated_mask = torch.nn.functional.interpolate(
-                        processed_mask, 
-                        size=(
-                            image_latents.shape[-2], 
-                            image_latents.shape[-1]
-                        )
-                    )
-            interpolated_mask = interpolated_mask.to(image_latents.device)
-
-            processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
-            interpolated_mask2 = torch.nn.functional.interpolate(
-                        processed_mask2, 
-                        size=(
-                            image_latents2.shape[-2], 
-                            image_latents2.shape[-1]
-                        )
-                    )
-            interpolated_mask2 = interpolated_mask2.to(image_latents2.device)
-
-            conditioning_latents = torch.concat([image_latents, interpolated_mask], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
-            conditioning_latents2 = torch.concat([image_latents2, interpolated_mask2], 1).to(dtype=torch_dtype).to(brushnet['brushnet'].device)
-
-        print('BrushNet CL: image_latents shape =', image_latents2.shape, 'interpolated_mask shape =', interpolated_mask2.shape)
+        conditioning_latents, conditioning_latents2 = get_image_latents(masked_image, mask, vae, scaling_factor)
+        conditioning_latents = conditioning_latents.to(dtype=torch_dtype).to(brushnet['brushnet'].device)
+        conditioning_latents2 = conditioning_latents2.to(dtype=torch_dtype).to(brushnet['brushnet'].device)
 
         # prepare embeddings
 
@@ -293,7 +371,7 @@ class BrushNet:
 
         # apply patch to code
 
-        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample .__doc__:
+        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample.__doc__:
             comfy.samplers.original_sample = comfy.samplers.sample
             comfy.samplers.sample = modified_sample
 
@@ -365,7 +443,135 @@ class BlendInpaint:
         return (torch.stack(ret), blurred_mask[0],)
 
 
-# Model needs current step number at inference step. It is possible to write a custom KSampler but I'd like to use ComfyUI's one.
+#### Utility function
+
+def get_files_with_extension(folder_name, extension=['safetensors']):
+    inpaint_path = os.path.join(folder_paths.models_dir, folder_name)
+    abs_list = []
+    for x in os.walk(inpaint_path):
+        for name in x[2]:
+            for ext in extension:
+                if ext in name:
+                    abs_list.append(os.path.join(x[0], name))
+    names = []
+    for x in abs_list:
+        remain = x
+        y = ''
+        while remain != inpaint_path:
+            remain, folder = os.path.split(remain)
+            if len(y) > 0:
+                y = os.path.join(folder, y)
+            else:
+                y = folder
+        names.append(y)     
+    return names
+
+
+def brushnet_blocks(sd):
+    brushnet_down_block = 0
+    brushnet_mid_block = 0
+    brushnet_up_block = 0
+    for key in sd:
+        if 'brushnet_down_block' in key:
+            brushnet_down_block += 1
+        if 'brushnet_mid_block' in key:
+            brushnet_mid_block += 1        
+        if 'brushnet_up_block' in key:
+            brushnet_up_block += 1
+    return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, len(sd))
+
+# Check models compatibility
+def check_compatibilty(model, brushnet):
+    is_SDXL = False
+    is_PP = False
+    if isinstance(model.model.model_config, comfy.supported_models.SD15):
+        print('Base model type: SD1.5')
+        is_SDXL = False
+        if brushnet["SDXL"]:
+            raise Exception("Base model is SD15, but BrushNet is SDXL type")  
+        if brushnet["PP"]:
+            is_PP = True
+    elif isinstance(model.model.model_config, comfy.supported_models.SDXL):
+        print('Base model type: SDXL')
+        is_SDXL = True
+        if not brushnet["SDXL"]:
+            raise Exception("Base model is SDXL, but BrushNet is SD15 type")    
+    else:
+        print('Base model type: ', type(model.model.model_config))
+        raise Exception("Unsupported model type: " + str(type(model.model.model_config)))
+
+    return (is_SDXL, is_PP)
+
+# Prepare image and mask
+def prepare_image(image, mask):
+    if len(image.shape) < 4:
+        # image tensor shape should be [B, H, W, C], but batch somehow is missing
+        image = image[None,:,:,:]
+    elif image.shape[0] > 1:
+        # batch > 1, take first image
+        image = image[0][None,:,:,:]   
+    
+    if len(mask.shape) > 3:
+        # mask tensor shape should be [B, H, W] but we get [B, H, W, C], image may be?
+        # take first mask, red channel
+        mask = (mask[0,:,:,0])[None,:,:]
+    elif len(mask.shape) < 3:
+        # mask tensor shape should be [B, H, W] but batch somehow is missing
+        mask = mask[None,:,:]
+    elif mask.shape[0] > 1:
+        # batch > 1, take first mask    
+        mask = mask[0][None,:,:]  
+
+    print("BrushNet image,", image.shape)
+
+    if mask.shape[2] != image.shape[2] or mask.shape[1] != image.shape[1]:
+        raise Exception("Image and mask should be the same size")
+    
+    # As a suggestion of inferno46n2 (https://github.com/nullquant/ComfyUI-BrushNet/issues/64)
+    mask = mask.round()
+
+    masked_image = image * (1.0 - mask[:,:,:,None])
+
+    return (masked_image, mask)
+
+
+# Prepare conditioning_latents
+def get_image_latents(masked_image, mask, vae, scaling_factor):
+    with torch.no_grad():
+        processed_image = masked_image.to(vae.device)
+        processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
+
+        image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
+        image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
+
+        processed_mask = 1. - mask[None,:,:,:]
+        interpolated_mask = torch.nn.functional.interpolate(
+                    processed_mask, 
+                    size=(
+                        image_latents.shape[-2], 
+                        image_latents.shape[-1]
+                    )
+                )
+        interpolated_mask = interpolated_mask.to(image_latents.device)
+
+        processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
+        interpolated_mask2 = torch.nn.functional.interpolate(
+                    processed_mask2, 
+                    size=(
+                        image_latents2.shape[-2], 
+                        image_latents2.shape[-1]
+                    )
+                )
+        interpolated_mask2 = interpolated_mask2.to(image_latents2.device)
+
+        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1)
+        conditioning_latents2 = torch.concat([image_latents2, interpolated_mask2], 1)
+
+    print('BrushNet CL: image_latents shape =', image_latents2.shape, 'interpolated_mask shape =', interpolated_mask2.shape)
+
+    return (conditioning_latents, conditioning_latents2)
+
+
 #def modified_common_ksampler(model, seed, steps, cfg, sampler_name, scheduler, positive, negative, latent, denoise=1.0, 
 #                             disable_noise=False, start_step=None, last_step=None, force_full_denoise=False):
 #    '''
@@ -406,7 +612,8 @@ class BlendInpaint:
 #    out["samples"] = samples
 #    return (out, )
 
-
+# Model needs current step number and cfg at inference step. It is possible to write a custom KSampler but I'd like to use ComfyUI's one.
+# The first versions had modified_common_ksampler, but it broke custom KSampler nodes
 def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, 
            latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
     '''
@@ -416,7 +623,7 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
     cfg_guider.set_conds(positive, negative)
     cfg_guider.set_cfg(cfg)
 
-    #######################################################################################
+    ### Modified part ######################################################################
     #
     to = add_model_patch_option(model)
     to['model_patch']['all_sigmas'] = sigmas
@@ -426,6 +633,7 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
        
     return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
 
+# Main function where magic happens
 def brushnet_inference(x, timesteps, transformer_options):
     if 'model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch in transformer_options')
@@ -435,7 +643,7 @@ def brushnet_inference(x, timesteps, transformer_options):
         print('BrushNet inference: there is no brushnet_model in transformer_options')
         return ([], 0, [])
     brushnet = mp['brushnet_model']
-    if isinstance(brushnet, BrushNetModel):
+    if isinstance(brushnet, BrushNetModel) or isinstance(brushnet, PowerPaintModel):
         cl = mp['brushnet_latents']
         cl2 = mp['brushnet_latents2']
         brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
@@ -444,6 +652,12 @@ def brushnet_inference(x, timesteps, transformer_options):
         ack = mp['brushnet_add_embeds']
         ack2 = mp['brushnet_add_embeds2']
         cfg = mp['cfg']
+
+        x = x.detach().clone()
+        x = x.to(torch_dtype).to(brushnet.device)
+
+        timesteps = timesteps.detach().clone()
+        timesteps = timesteps.to(torch_dtype).to(brushnet.device)
 
         all_sigmas = mp['all_sigmas']
         sigma = transformer_options['sigmas'][0].item()
@@ -466,7 +680,7 @@ def brushnet_inference(x, timesteps, transformer_options):
         if do_classifier_free_guidance and step == 0:
             print('BrushNet inference: do_classifier_free_guidance is True')
 
-        if do_classifier_free_guidance and x.shape[0] %2 != 0:
+        if do_classifier_free_guidance and x.shape[0] % 2 != 0:
             if step == 0:
                 print('Do_classifier_free_guidance and x.shape', x.shape, ', set DCFG = False')
             do_classifier_free_guidance = False
@@ -477,8 +691,11 @@ def brushnet_inference(x, timesteps, transformer_options):
                     print('BrushNet inference: latent batch ', x.shape[0] // 2)
                 conditioning_latents = torch.cat([cl2] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
                 prompt_embeds = pe2
-                added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
-                added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
+                if ack2['text_embeds'] is not None and ack2['time_ids'] is not None:
+                    added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
+                    added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
+                else:
+                    added_cond_kwargs = ack2
             else:
                 conditioning_latents = cl2
                 prompt_embeds = pe2
@@ -488,8 +705,11 @@ def brushnet_inference(x, timesteps, transformer_options):
                 print('BrushNet inference: latent batch ', x.shape[0])
             conditioning_latents = torch.cat([cl] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
             prompt_embeds = pe
-            added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
-            added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
+            if ack['text_embeds'] is not None and ack['time_ids'] is not None:
+                added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
+                added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
+            else:
+                added_cond_kwargs = ack
         else:
             conditioning_latents = cl
             prompt_embeds = pe
@@ -508,29 +728,35 @@ def brushnet_inference(x, timesteps, transformer_options):
         if check and step == 0:
             print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
 
-        brushnet_keep = []
-        for i in range(total_steps):
-            keeps = [
-                1.0 - float(i / total_steps < s or (i + 1) / total_steps > e)
-                for s, e in zip([control_guidance_start], [control_guidance_end])
-            ]
-            brushnet_keep.append(keeps[0])
+        if step < control_guidance_start or step > control_guidance_end:
+            cond_scale = 0.0
+        else:
+            cond_scale = brushnet_conditioning_scale
 
-        cond_scale = brushnet_conditioning_scale * brushnet_keep[step]
-
-        return brushnet(x.to(torch_dtype).to(brushnet.device),
-                        encoder_hidden_states=prompt_embeds,
-                        brushnet_cond=conditioning_latents,
-                        timestep = timesteps.to(torch_dtype).to(brushnet.device),
-                        conditioning_scale=cond_scale,
-                        guess_mode=False,
-                        added_cond_kwargs=added_cond_kwargs,
-                        return_dict=False,
-                    )
+        if isinstance(brushnet, PowerPaintModel):
+            return brushnet(x,
+                            encoder_hidden_states=prompt_embeds,
+                            brushnet_cond=conditioning_latents,
+                            timestep = timesteps,
+                            conditioning_scale=cond_scale,
+                            guess_mode=False,
+                            return_dict=False,
+                        )
+        else:
+            return brushnet(x,
+                            encoder_hidden_states=prompt_embeds,
+                            brushnet_cond=conditioning_latents,
+                            timestep = timesteps,
+                            conditioning_scale=cond_scale,
+                            guess_mode=False,
+                            added_cond_kwargs=added_cond_kwargs,
+                            return_dict=False,
+                        )
     else:
         print('BrushNet model is not a BrushNetModel class')
         return ([], 0, [])
 
+# Check and add 'model_patch' to model.model_options['transformer_options']
 def add_model_patch_option(model):
     if 'transformer_options' not in model.model_options:
         model.model_options['transformer_options'] = {}
@@ -539,6 +765,7 @@ def add_model_patch_option(model):
         to["model_patch"] = {}
     return to
 
+# This is main patch function
 def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_latents2, 
                        controls, 
                        prompt_embeds, add_text_embeds, add_time_ids,
@@ -562,7 +789,7 @@ def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_laten
         input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
         output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
     
-    # patch model `forward` so we can call BrushNet inference and setup additional samples to layers
+    # patch model `forward` so we can call BrushNet inference and add additional samples to layers
     if not hasattr(model.model.diffusion_model, 'original_forward'):
         model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
     def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
@@ -591,7 +818,10 @@ def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_laten
     def forward_patched_by_brushnet(self, x, *args, **kwargs):
         h = self.original_forward(x, *args, **kwargs)
         if hasattr(self, 'brushnet_sample'):
-            h += self.brushnet_sample
+            if torch.is_tensor(self.brushnet_sample):
+                h += self.brushnet_sample.to(h.dtype).to(h.device)
+            else:
+                h += self.brushnet_sample
         return h
 
     for i, block in enumerate(model.model.diffusion_model.input_blocks):
