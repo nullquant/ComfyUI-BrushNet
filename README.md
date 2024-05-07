@@ -20,8 +20,8 @@ Apr 11, 2024. Initial commit.
 
 - [x] BrushNet SDXL
 - [x] PowerPaint v2
-- [ ] Compatibility with `jank HiDiffusion` and similar nodes
 - [ ] Image batch
+- [ ] Compatibility with `jank HiDiffusion` and similar nodes
 
 ## Installation
 
@@ -59,9 +59,18 @@ Below is an example for the intended workflow. The [workflow](example/BrushNet_b
 
 ### Parameters
 
+#### Brushnet Loader
+
+- `dtype`, defaults to `torch.float16`. The torch.dtype of BrushNet. If you have old GPU or NVIDIA 16 series card try to switch to `torch.float32`.
+
+#### Brushnet
+
 - `scale`, defaults to 1.0: The "strength" of BrushNet. The outputs of the BrushNet are multiplied by `scale` before they are added to the residual in the original unet.
 - `start_at`, defaults to 0: step at which the BrushNet starts applying.
 - `end_at`, defaults to 10000: step at which the BrushNet stops applying.
+
+#### PowerPaint
+
 - `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
 - `fitting`: PowerPaint fitting degree.
 - `function`: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.

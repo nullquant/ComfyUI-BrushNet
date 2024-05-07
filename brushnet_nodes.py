@@ -5,6 +5,7 @@ import os
 import folder_paths
 
 import sys
+from sys import platform
 # Get the parent directory of 'comfy' and add it to the Python path
 comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.append(comfy_parent_dir)
@@ -30,9 +31,9 @@ brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.jso
 brushnet_xl_config_file = os.path.join(current_directory, 'brushnet', 'brushnet_xl.json')
 powerpaint_config_file = os.path.join(current_directory,'brushnet', 'powerpaint.json')
 
-torch_dtype = torch.float16
 sd15_scaling_factor = 0.18215
 sdxl_scaling_factor = 0.13025
+
 
 class BrushNetLoader:
 
@@ -41,6 +42,7 @@ class BrushNetLoader:
         return {"required":
                     {    
                         "brushnet": (get_files_with_extension('inpaint'), ),
+                        "dtype": (['float16', 'bfloat16', 'float32', 'float64'], ),
                      },
                 }
 
@@ -50,7 +52,7 @@ class BrushNetLoader:
 
     FUNCTION = "brushnet_loading"
 
-    def brushnet_loading(self, brushnet):
+    def brushnet_loading(self, brushnet, dtype):
         brushnet_file = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
 
         is_SDXL = False
@@ -89,6 +91,15 @@ class BrushNetLoader:
         else:
             print("BrushNet model file:", brushnet_file)
 
+        if dtype == 'float16':
+            torch_dtype = torch.float16
+        elif dtype == 'bfloat16':
+            torch_dtype = torch.bfloat16
+        elif dtype == 'float32':
+            torch_dtype = torch.float32
+        else:
+            torch_dtype = torch.float64
+
         brushnet_model = load_checkpoint_and_dispatch(
             brushnet_model,
             brushnet_file,
@@ -107,7 +118,7 @@ class BrushNetLoader:
         else:
             print("BrushNet SD1.5 model is loaded")
 
-        return ({"brushnet": brushnet_model, "SDXL": is_SDXL, "PP": is_PP},)
+        return ({"brushnet": brushnet_model, "SDXL": is_SDXL, "PP": is_PP, "dtype": torch_dtype}, )
 
 
 class PowerPaintCLIPLoader:
@@ -205,6 +216,8 @@ class PowerPaint:
         else:
             scaling_factor = sd15_scaling_factor
 
+        torch_dtype = powerpaint['dtype']
+
         # prepare conditioning latents
         conditioning_latents, conditioning_latents2 = get_image_latents(masked_image, mask, vae, scaling_factor)
         conditioning_latents = conditioning_latents.to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
@@ -275,6 +288,7 @@ class PowerPaint:
 
         add_brushnet_patch(model, 
                            powerpaint['brushnet'],
+                           torch_dtype,
                            conditioning_latents, 
                            conditioning_latents2, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
@@ -336,6 +350,8 @@ class BrushNet:
         else:
             scaling_factor = sd15_scaling_factor
 
+        torch_dtype = brushnet['dtype']
+
         # prepare conditioning latents
         conditioning_latents, conditioning_latents2 = get_image_latents(masked_image, mask, vae, scaling_factor)
         conditioning_latents = conditioning_latents.to(dtype=torch_dtype).to(brushnet['brushnet'].device)
@@ -383,6 +399,7 @@ class BrushNet:
 
         add_brushnet_patch(model, 
                            brushnet['brushnet'],
+                           torch_dtype,
                            conditioning_latents, 
                            conditioning_latents2, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
@@ -480,6 +497,7 @@ def brushnet_blocks(sd):
             brushnet_up_block += 1
     return (brushnet_down_block, brushnet_mid_block, brushnet_up_block, len(sd))
 
+
 # Check models compatibility
 def check_compatibilty(model, brushnet):
     is_SDXL = False
@@ -536,36 +554,36 @@ def prepare_image(image, mask):
 
 
 # Prepare conditioning_latents
+@torch.inference_mode()
 def get_image_latents(masked_image, mask, vae, scaling_factor):
-    with torch.no_grad():
-        processed_image = masked_image.to(vae.device)
-        processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
+    processed_image = masked_image.to(vae.device)
+    processed_image2 = torch.cat([masked_image] * 2).to(vae.device)
 
-        image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
-        image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
+    image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
+    image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
 
-        processed_mask = 1. - mask[None,:,:,:]
-        interpolated_mask = torch.nn.functional.interpolate(
-                    processed_mask, 
-                    size=(
-                        image_latents.shape[-2], 
-                        image_latents.shape[-1]
-                    )
+    processed_mask = 1. - mask[None,:,:,:]
+    interpolated_mask = torch.nn.functional.interpolate(
+                processed_mask, 
+                size=(
+                    image_latents.shape[-2], 
+                    image_latents.shape[-1]
                 )
-        interpolated_mask = interpolated_mask.to(image_latents.device)
+            )
+    interpolated_mask = interpolated_mask.to(image_latents.device)
 
-        processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
-        interpolated_mask2 = torch.nn.functional.interpolate(
-                    processed_mask2, 
-                    size=(
-                        image_latents2.shape[-2], 
-                        image_latents2.shape[-1]
-                    )
+    processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
+    interpolated_mask2 = torch.nn.functional.interpolate(
+                processed_mask2, 
+                size=(
+                    image_latents2.shape[-2], 
+                    image_latents2.shape[-1]
                 )
-        interpolated_mask2 = interpolated_mask2.to(image_latents2.device)
+            )
+    interpolated_mask2 = interpolated_mask2.to(image_latents2.device)
 
-        conditioning_latents = torch.concat([image_latents, interpolated_mask], 1)
-        conditioning_latents2 = torch.concat([image_latents2, interpolated_mask2], 1)
+    conditioning_latents = torch.concat([image_latents, interpolated_mask], 1)
+    conditioning_latents2 = torch.concat([image_latents2, interpolated_mask2], 1)
 
     print('BrushNet CL: image_latents shape =', image_latents2.shape, 'interpolated_mask shape =', interpolated_mask2.shape)
 
@@ -634,6 +652,7 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
     return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
 
 # Main function where magic happens
+@torch.inference_mode()
 def brushnet_inference(x, timesteps, transformer_options):
     if 'model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch in transformer_options')
@@ -644,6 +663,7 @@ def brushnet_inference(x, timesteps, transformer_options):
         return ([], 0, [])
     brushnet = mp['brushnet_model']
     if isinstance(brushnet, BrushNetModel) or isinstance(brushnet, PowerPaintModel):
+        torch_dtype = mp['brushnet_dtype']
         cl = mp['brushnet_latents']
         cl2 = mp['brushnet_latents2']
         brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
@@ -752,6 +772,9 @@ def brushnet_inference(x, timesteps, transformer_options):
                             added_cond_kwargs=added_cond_kwargs,
                             return_dict=False,
                         )
+
+
+
     else:
         print('BrushNet model is not a BrushNetModel class')
         return ([], 0, [])
@@ -766,12 +789,13 @@ def add_model_patch_option(model):
     return to
 
 # This is main patch function
-def add_brushnet_patch(model, brushnet, conditioning_latents, conditioning_latents2, 
+def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents, conditioning_latents2, 
                        controls, 
                        prompt_embeds, add_text_embeds, add_time_ids,
                        prompt_embeds2, add_text_embeds2, add_time_ids2):
     to = add_model_patch_option(model)
     to['model_patch']['brushnet_model'] = brushnet
+    to['model_patch']['brushnet_dtype'] = torch_dtype
     to['model_patch']['brushnet_latents'] = conditioning_latents
     to['model_patch']['brushnet_latents2'] = conditioning_latents2
     to['model_patch']['brushnet_controls'] = controls
