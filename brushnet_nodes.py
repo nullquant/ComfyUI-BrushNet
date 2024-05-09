@@ -10,7 +10,7 @@ from sys import platform
 comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 sys.path.append(comfy_parent_dir)
 import comfy
-#import nodes
+import nodes
 #import latent_preview
 
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
@@ -159,7 +159,7 @@ class PowerPaintCLIPLoader:
 
         pp_text_encoder.load_state_dict(torch.load(pp_CLIP_file), strict=False)
 
-        print('PowerPaint CLIP file: ', base_CLIP_file)
+        print('PowerPaint CLIP file: ', pp_CLIP_file)
 
         pp_clip.tokenizer.clip_l.tokenizer = pp_tokenizer
         pp_clip.patcher.model.clip_l.transformer = pp_text_encoder
@@ -682,11 +682,7 @@ def brushnet_inference(x, timesteps, transformer_options):
         all_sigmas = mp['all_sigmas']
         sigma = transformer_options['sigmas'][0].item()
         total_steps = all_sigmas.shape[0]
-        step = ((all_sigmas - sigma).abs() < 1e-3).nonzero(as_tuple=True)[0]
-        if len(step) == 0:
-            step = 0
-        else:
-            step = (all_sigmas == sigma).nonzero(as_tuple=True)[0].item()
+        step = torch.argmin((all_sigmas - sigma).abs()).item()
 
         added_cond_kwargs = {}
 

@@ -6,6 +6,8 @@ My contribution is limited to the ComfyUI adaptation, and all credit goes to the
 
 ## Updates
 
+May 9, 2024. Added [ControlNet canny edge](CN.md) examples.
+
 May 6, 2024. PowerPaint v2 model is implemented. After update your workflow probably will not work. Don't panic! Check `end_at` parameter of BrushNode, if it equals 1, change it to some big number. Read about parameters in Usage section below.
 
 May 2, 2024. BrushNet SDXL is live. It needs positive and negative conditioning though, so workflow changes a little, see example.
@@ -131,6 +133,8 @@ Sometimes inference and VAE broke image, so you need to blend inpaint image with
 ![example workflow](example/BrushNet_with_CN.png?raw=true)
 
 [workflow](example/BrushNet_with_CN.json)
+
+[ControlNet canny edge](CN.md)
 
 </details>
 
