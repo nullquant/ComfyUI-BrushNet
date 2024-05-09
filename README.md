@@ -6,7 +6,7 @@ My contribution is limited to the ComfyUI adaptation, and all credit goes to the
 
 ## Updates
 
-May 9, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added [ControlNet canny edge](CN.md) examples.
+May 9, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added some more examples.
 
 May 6, 2024. PowerPaint v2 model is implemented. After update your workflow probably will not work. Don't panic! Check `end_at` parameter of BrushNode, if it equals 1, change it to some big number. Read about parameters in Usage section below.
 
@@ -135,6 +135,15 @@ Sometimes inference and VAE broke image, so you need to blend inpaint image with
 [workflow](example/BrushNet_with_CN.json)
 
 [ControlNet canny edge](CN.md)
+
+</details>
+
+<details>
+  <summary>ELLA outpaint</summary>
+
+![example workflow](example/BrushNet_with_ELLA.png?raw=true)
+
+[workflow](example/BrushNet_with_ELLA.json)
 
 </details>
 
