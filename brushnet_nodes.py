@@ -208,6 +208,7 @@ class PowerPaint:
         # no batches for original image and mask
         masked_image, mask = prepare_image(image, mask)
 
+        batch = masked_image.shape[0]
         #width = masked_image.shape[2]
         #height = masked_image.shape[1]
 
@@ -295,7 +296,7 @@ class PowerPaint:
                            prompt_embeds_pp, None, None,
                            prompt_embeds_pp2, None, None)
 
-        latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=powerpaint['brushnet'].device)
+        latent = torch.zeros([batch, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=powerpaint['brushnet'].device)
         #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
 
         return (model, positive, negative, {"samples":latent},)
@@ -340,6 +341,7 @@ class BrushNet:
         # no batches for original image and mask
         masked_image, mask = prepare_image(image, mask)
 
+        batch = masked_image.shape[0]
         width = masked_image.shape[2]
         height = masked_image.shape[1]
 
@@ -406,7 +408,7 @@ class BrushNet:
                            prompt_embeds, add_text_embeds, add_time_ids,
                            prompt_embeds2, add_text_embeds2, add_time_ids2)
 
-        latent = torch.zeros([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
+        latent = torch.zeros([batch, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
         #latent = torch.randn([1, 4, conditioning_latents.shape[2], conditioning_latents.shape[3]], device=brushnet['brushnet'].device)
 
         return (model, positive, negative, {"samples":latent},)
