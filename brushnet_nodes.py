@@ -525,22 +525,36 @@ def prepare_image(image, mask):
     if len(image.shape) < 4:
         # image tensor shape should be [B, H, W, C], but batch somehow is missing
         image = image[None,:,:,:]
-    elif image.shape[0] > 1:
-        # batch > 1, take first image
-        image = image[0][None,:,:,:]   
+    #elif image.shape[0] > 1:
+    #    print("")
+    #    # batch > 1, take first image
+    #    image = image[0][None,:,:,:]   
     
     if len(mask.shape) > 3:
         # mask tensor shape should be [B, H, W] but we get [B, H, W, C], image may be?
         # take first mask, red channel
-        mask = (mask[0,:,:,0])[None,:,:]
+        mask = (mask[:,:,:,0])[:,:,:]
     elif len(mask.shape) < 3:
         # mask tensor shape should be [B, H, W] but batch somehow is missing
         mask = mask[None,:,:]
-    elif mask.shape[0] > 1:
-        # batch > 1, take first mask    
-        mask = mask[0][None,:,:]  
+    #elif mask.shape[0] > 1:
+    #    # batch > 1, take first mask    
+    #    mask = mask[0][None,:,:]  
 
-    print("BrushNet image,", image.shape)
+    if image.shape[0] > mask.shape[0]:
+        print("BrushNet gets batch of images (%d) but only %d masks" % (image.shape[0], mask.shape[0]))
+        if mask.shape[0] == 1: 
+            print("BrushNet will copy the mask to fill batch")
+            mask = torch.cat([mask] * image.shape[0], dim=0)
+        else:
+            print("BrushNet will add empty masks to fill batch")
+            empty_mask = torch.zeros([image.shape[0] - mask.shape[0], mask.shape[1], mask.shape[2]])
+            mask = torch.cat([mask, empty_mask], dim=0)
+    elif image.shape[0] < mask.shape[0]:
+        print("BrushNet gets batch of images (%d) but too many (%d) masks" % (image.shape[0], mask.shape[0]))
+        mask = mask[:image.shape[0],:,:]
+
+    print("BrushNet image.shape =", image.shape, "mask.shape =", mask.shape)
 
     if mask.shape[2] != image.shape[2] or mask.shape[1] != image.shape[1]:
         raise Exception("Image and mask should be the same size")
@@ -562,7 +576,7 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
     image_latents = vae.encode(processed_image[:,:,:,:3]) * scaling_factor
     image_latents2 = vae.encode(processed_image2[:,:,:,:3]) * scaling_factor
 
-    processed_mask = 1. - mask[None,:,:,:]
+    processed_mask = 1. - mask[:,None,:,:]
     interpolated_mask = torch.nn.functional.interpolate(
                 processed_mask, 
                 size=(
@@ -572,7 +586,7 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
             )
     interpolated_mask = interpolated_mask.to(image_latents.device)
 
-    processed_mask2 = torch.cat([1. - mask[None,:,:,:]] * 2)
+    processed_mask2 = torch.cat([1. - mask[:,None,:,:]] * 2)
     interpolated_mask2 = torch.nn.functional.interpolate(
                 processed_mask2, 
                 size=(
@@ -673,6 +687,10 @@ def brushnet_inference(x, timesteps, transformer_options):
         ack2 = mp['brushnet_add_embeds2']
         cfg = mp['cfg']
 
+        sub_idx = None
+        if 'ad_params' in transformer_options and 'sub_idxs' in transformer_options['ad_params']:
+            sub_idx = transformer_options['ad_params']['sub_idxs']
+
         x = x.detach().clone()
         x = x.to(torch_dtype).to(brushnet.device)
 
@@ -686,49 +704,65 @@ def brushnet_inference(x, timesteps, transformer_options):
 
         added_cond_kwargs = {}
 
-        check = False
-        if (x.shape[0], x.shape[2], x.shape[3]) != (cl.shape[0], cl.shape[2], cl.shape[3]):
-            if step == 0:
-                print('BrushNet inference: sample', x.shape, ', CL', cl.shape)
-            check = True
-
         do_classifier_free_guidance = cfg > 1
-        if do_classifier_free_guidance and step == 0:
-            print('BrushNet inference: do_classifier_free_guidance is True')
-
         if do_classifier_free_guidance and x.shape[0] % 2 != 0:
             if step == 0:
                 print('Do_classifier_free_guidance and x.shape', x.shape, ', set DCFG = False')
             do_classifier_free_guidance = False
 
+        if do_classifier_free_guidance and step == 0:
+            print('BrushNet inference: do_classifier_free_guidance is True')
+
         if do_classifier_free_guidance:
-            if x.shape[0] > 2:
-                if step == 0:
-                    print('BrushNet inference: latent batch ', x.shape[0] // 2)
-                conditioning_latents = torch.cat([cl2] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
-                prompt_embeds = pe2
-                if ack2['text_embeds'] is not None and ack2['time_ids'] is not None:
+            prompt_embeds = pe2
+            if sub_idx:
+                idx = []
+                for i in sub_idx:
+                    idx.extend([2 * i, 2 * i + 1])
+                cl2apply = torch.index_select(cl2, 0, torch.IntTensor(idx).to(cl2.device))
+            else:
+                cl2apply = cl2
+        else:
+            prompt_embeds = pe
+            if sub_idx:
+                cl2apply = torch.index_select(cl, 0, torch.IntTensor(sub_idx).to(cl2.device))
+            else:
+                cl2apply = cl
+
+        if step == 0:
+            print('BrushNet inference: sample', x.shape, ', CL', cl2apply.shape)
+            if sub_idx:
+                print('BrushNet inference: AnimateDiff indexes detected and applied')
+
+        check = False
+        if (x.shape[0], x.shape[2], x.shape[3]) != (cl2apply.shape[0], cl2apply.shape[2], cl2apply.shape[3]):
+            check = True
+
+        if x.shape[0] > cl2apply.shape[0]:
+            batch = x.shape[0] // cl2apply.shape[0]
+            if step == 0:
+                print('BrushNet inference: latent batch', batch)
+            conditioning_latents = torch.cat([cl2apply] * batch, dim=0).to(torch_dtype).to(brushnet.device)
+        elif x.shape[0] < cl2apply.shape[0]:
+            if step == 0:
+                print('BrushNet inference: sample batch is less, than CL!')
+            conditioning_latents = cl2apply[:x.shape[0],:,:,:].to(torch_dtype).to(brushnet.device)
+        else:
+            conditioning_latents = cl2apply.to(torch_dtype).to(brushnet.device)
+
+        if ack2['text_embeds'] is not None and ack2['time_ids'] is not None:
+            if do_classifier_free_guidance:
+                if x.shape[0] > 2:
                     added_cond_kwargs['text_embeds'] = torch.cat([ack2['text_embeds']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
                     added_cond_kwargs['time_ids'] = torch.cat([ack2['time_ids']] * (x.shape[0] // 2), dim=0).to(torch_dtype).to(brushnet.device)
                 else:
                     added_cond_kwargs = ack2
-            else:
-                conditioning_latents = cl2
-                prompt_embeds = pe2
-                added_cond_kwargs = ack2
-        elif x.shape[0] > 1:
-            if step == 0:
-                print('BrushNet inference: latent batch ', x.shape[0])
-            conditioning_latents = torch.cat([cl] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
-            prompt_embeds = pe
-            if ack['text_embeds'] is not None and ack['time_ids'] is not None:
+            elif x.shape[0] > 1:
                 added_cond_kwargs['text_embeds'] = torch.cat([ack['text_embeds']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
                 added_cond_kwargs['time_ids'] = torch.cat([ack['time_ids']] * x.shape[0], dim=0).to(torch_dtype).to(brushnet.device)
             else:
                 added_cond_kwargs = ack
         else:
-            conditioning_latents = cl
-            prompt_embeds = pe
             added_cond_kwargs = ack
 
         if x.shape[2] != conditioning_latents.shape[2] or x.shape[3] != conditioning_latents.shape[3]:
@@ -768,9 +802,6 @@ def brushnet_inference(x, timesteps, transformer_options):
                             added_cond_kwargs=added_cond_kwargs,
                             return_dict=False,
                         )
-
-
-
     else:
         print('BrushNet model is not a BrushNetModel class')
         return ([], 0, [])
@@ -839,6 +870,7 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents, condi
         h = self.original_forward(x, *args, **kwargs)
         if hasattr(self, 'brushnet_sample'):
             if torch.is_tensor(self.brushnet_sample):
+                #print(type(self), h.shape, self.brushnet_sample.shape)
                 h += self.brushnet_sample.to(h.dtype).to(h.device)
             else:
                 h += self.brushnet_sample
