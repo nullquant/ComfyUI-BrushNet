@@ -165,6 +165,14 @@ To upscale you should use base model, not BrushNet. The same is true for conditi
 
 [workflow](example/PowerPaint_object_removal.json)
 
+It is often hard to completely remove the object, especially if it is at the front:
+
+![object removal example](example/object_removal_fail.png?raw=true)
+
+You should try to add object description to negative prompt and describe empty scene, like here:
+
+![object removal example](example/object_removal.png?raw=true)
+
 </details>
 
 ## Notes
