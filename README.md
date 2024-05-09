@@ -6,7 +6,7 @@ My contribution is limited to the ComfyUI adaptation, and all credit goes to the
 
 ## Updates
 
-May 9, 2024. Added [ControlNet canny edge](CN.md) examples.
+May 9, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added [ControlNet canny edge](CN.md) examples.
 
 May 6, 2024. PowerPaint v2 model is implemented. After update your workflow probably will not work. Don't panic! Check `end_at` parameter of BrushNode, if it equals 1, change it to some big number. Read about parameters in Usage section below.
 
@@ -22,7 +22,7 @@ Apr 11, 2024. Initial commit.
 
 - [x] BrushNet SDXL
 - [x] PowerPaint v2
-- [ ] Image batch
+- [x] Image batch
 - [ ] Compatibility with `jank HiDiffusion` and similar nodes
 
 ## Installation
