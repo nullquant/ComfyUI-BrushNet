@@ -36,12 +36,12 @@ Here I use basic BrushNet inpaint [example](example/BrushNet_basic.json), with "
 
 There are almost no changes when we set 'end_at' paramter to 10, but starting from it:
 
-| `start_at` = 10 | `start_at` = 9 | `start_at` = 8 | 
+| `end_at` = 10 | `end_at` = 9 | `end_at` = 8 | 
 |:--------------:|:--------------:|:--------------:|
 | ![p1](example/params14.png?raw=true) | ![p2](example/params15.png?raw=true) | ![p3](example/params16.png?raw=true) |
-| `start_at` = 7 | `start_at` = 6 | `start_at` = 5 |
+| `end_at` = 7 | `end_at` = 6 | `end_at` = 5 |
 | ![p1](example/params17.png?raw=true) | ![p2](example/params18.png?raw=true) | ![p3](example/params19.png?raw=true) |
-|  `start_at` = 4 |  `start_at` = 3 |  `start_at` = 2 |
+|  `end_at` = 4 |  `end_at` = 3 |  `end_at` = 2 |
 | ![p1](example/params20.png?raw=true) | ![p2](example/params21.png?raw=true) | ![p3](example/params22.png?raw=true) |
 
 You can see how the scene was completely redrawn.
