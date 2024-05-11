@@ -294,7 +294,7 @@ class PowerPaint:
                            torch_dtype,
                            conditioning_latents, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
-                           prompt_embeds_pp, negative_prompt_embeds_pp,
+                           negative_prompt_embeds_pp, prompt_embeds_pp, 
                            None, None, None)
 
         latent = torch.zeros([batch, 4, conditioning_latents[0].shape[2], conditioning_latents[0].shape[3]], device=powerpaint['brushnet'].device)
