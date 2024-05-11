@@ -6,7 +6,7 @@ My contribution is limited to the ComfyUI adaptation, and all credit goes to the
 
 ## Updates
 
-May 9, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added some more examples.
+May 11, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added some more examples.
 
 May 6, 2024. PowerPaint v2 model is implemented. After update your workflow probably will not work. Don't panic! Check `end_at` parameter of BrushNode, if it equals 1, change it to some big number. Read about parameters in Usage section below.
 
@@ -155,6 +155,15 @@ Sometimes inference and VAE broke image, so you need to blend inpaint image with
 [workflow](example/BrushNet_SDXL_upscale.json)
 
 To upscale you should use base model, not BrushNet. The same is true for conditioning. Latent upscaling between BrushNet and KSampler will not work or will give you wierd results. These limitations are due to structure of BrushNet and its influence on UNet calculations.
+
+</details>
+
+<details>
+  <summary>Image batch</summary>
+
+![example workflow](example/BrushNet_image_batch.png?raw=true)
+
+[workflow](example/BrushNet_image_batch.json)
 
 </details>
 
