@@ -71,6 +71,8 @@ Below is an example for the intended workflow. The [workflow](example/BrushNet_b
 - `start_at`, defaults to 0: step at which the BrushNet starts applying.
 - `end_at`, defaults to 10000: step at which the BrushNet stops applying.
 
+[Here](PARAMS.md) are examples of use these two last parameters.
+
 #### PowerPaint
 
 - `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
