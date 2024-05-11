@@ -22,7 +22,7 @@ Apr 11, 2024. Initial commit.
 
 - [x] BrushNet SDXL
 - [x] PowerPaint v2
-- [ ] Image batch
+- [x] Image batch
 - [ ] Compatibility with `jank HiDiffusion` and similar nodes
 
 ## Installation
