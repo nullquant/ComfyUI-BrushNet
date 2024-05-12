@@ -6,6 +6,8 @@ My contribution is limited to the ComfyUI adaptation, and all credit goes to the
 
 ## Updates
 
+May 12, 2024. CutForInpaint node, see [example](BIG_IMAGE.md).
+
 May 11, 2024. Image batch is implemented. You can even add BrushNet to AnimateDiff vid2vid workflow, but they don't work together - they are different models and both try to patch UNet. Added some more examples.
 
 May 6, 2024. PowerPaint v2 model is implemented. After update your workflow probably will not work. Don't panic! Check `end_at` parameter of BrushNode, if it equals 1, change it to some big number. Read about parameters in Usage section below.
@@ -168,6 +170,20 @@ To upscale you should use base model, not BrushNet. The same is true for conditi
 [workflow](example/BrushNet_image_batch.json)
 
 </details>
+
+
+<details>
+  <summary>Big image inpaint</summary>
+
+![example workflow](example/BrushNet_cut_for_inpaint.png?raw=true)
+
+[workflow](example/BrushNet_cut_for_inpaint.json)
+
+When you work with big image and your inpaint mask is small it is better to cut part of the image, work with it and then blend it back. 
+I created a node for such workflow, see example.
+
+</details>
+
 
 <details>
   <summary>PowerPaint outpaint</summary>

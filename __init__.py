@@ -1,4 +1,4 @@
-from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint, PowerPaintCLIPLoader, PowerPaint
+from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint, PowerPaintCLIPLoader, PowerPaint, CutForInpaint
 """
 @author: nullquant
 @title: BrushNet
@@ -14,6 +14,7 @@ NODE_CLASS_MAPPINGS = {
     "BlendInpaint": BlendInpaint,
     "PowerPaintCLIPLoader": PowerPaintCLIPLoader,
     "PowerPaint": PowerPaint,
+    "CutForInpaint": CutForInpaint,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -23,4 +24,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "BlendInpaint": "Blend Inpaint",
     "PowerPaintCLIPLoader": "PowerPaint CLIP Loader",
     "PowerPaint": "PowerPaint",
+    "CutForInpaint": "Cut For Inpaint",
 }
