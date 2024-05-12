@@ -44,6 +44,7 @@ ModelsToUnload = [comfy.sd1_clip.SD1ClipModel,
                   comfy.ldm.models.autoencoder.AutoencoderKL
                  ]
 
+
 class BrushNetLoader:
 
     @classmethod
@@ -171,7 +172,7 @@ class PowerPaintCLIPLoader:
             num_vectors_per_token = 10,
         )
 
-        pp_text_encoder.load_state_dict(torch.load(pp_CLIP_file), strict=False)
+        pp_text_encoder.load_state_dict(comfy.utils.load_torch_file(pp_CLIP_file), strict=False)
 
         print('PowerPaint CLIP file: ', pp_CLIP_file)
 
