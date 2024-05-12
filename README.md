@@ -197,7 +197,7 @@ You should try to add object description to negative prompt and describe empty s
 
 ## Notes
 
-Unfortunately, due to the nature of ComfyUI code some nodes are not compatible with these, since we are trying to patch the same ComfyUI's functions. 
+Unfortunately, due to the nature of BrushNet code some nodes are not compatible with these, since we are trying to patch the same ComfyUI's functions. 
 
 List of known uncompartible nodes.
 

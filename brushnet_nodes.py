@@ -43,9 +43,11 @@ class BrushNetLoader:
 
     @classmethod
     def INPUT_TYPES(s):
+        files, inpaint_path = get_files_with_extension('inpaint')
+        s.inpaint_path = inpaint_path
         return {"required":
                     {    
-                        "brushnet": (get_files_with_extension('inpaint'), ),
+                        "brushnet": (files, ),
                         "dtype": (['float16', 'bfloat16', 'float32', 'float64'], ),
                      },
                 }
@@ -57,8 +59,7 @@ class BrushNetLoader:
     FUNCTION = "brushnet_loading"
 
     def brushnet_loading(self, brushnet, dtype):
-        brushnet_file = os.path.join(folder_paths.models_dir, "inpaint", brushnet)
-
+        brushnet_file = os.path.join(self.inpaint_path, brushnet)
         is_SDXL = False
         is_PP = False
         sd = comfy.utils.load_torch_file(brushnet_file)
@@ -129,10 +130,14 @@ class PowerPaintCLIPLoader:
 
     @classmethod
     def INPUT_TYPES(s):
+        inpaint_files, inpaint_path = get_files_with_extension('inpaint', ['bin'])
+        s.inpaint_path = inpaint_path
+        clip_files, clip_path = get_files_with_extension('clip')
+        s.clip_path = clip_path
         return {"required":
                     {    
-                        "base": (get_files_with_extension('clip'), ),
-                        "powerpaint": (get_files_with_extension('inpaint', ['bin']), ),
+                        "base": (clip_files, ),
+                        "powerpaint": (inpaint_files, ),
                      },
                 }
 
@@ -143,8 +148,8 @@ class PowerPaintCLIPLoader:
     FUNCTION = "ppclip_loading"
 
     def ppclip_loading(self, base, powerpaint):
-        base_CLIP_file = os.path.join(folder_paths.models_dir, "clip", base)
-        pp_CLIP_file = os.path.join(folder_paths.models_dir, "inpaint", powerpaint)
+        base_CLIP_file = os.path.join(self.clip_path, base)
+        pp_CLIP_file = os.path.join(self.inpaint_path, powerpaint)
 
         pp_clip = comfy.sd.load_clip(ckpt_paths=[base_CLIP_file])
 
@@ -463,7 +468,17 @@ class BlendInpaint:
 #### Utility function
 
 def get_files_with_extension(folder_name, extension=['safetensors']):
-    inpaint_path = os.path.join(folder_paths.models_dir, folder_name)
+
+    try:
+        inpaint_path = folder_paths.get_folder_paths(folder_name)[0]
+    except:
+        inpaint_path = os.path.join(folder_paths.models_dir, folder_name)
+    
+    if not os.path.isdir(inpaint_path):
+        inpaint_path = os.path.join(folder_paths.base_dir, inpaint_path)
+    if not os.path.isdir(inpaint_path):
+        raise Exception("Can't find", folder_name, " path")
+
     abs_list = []
     for x in os.walk(inpaint_path):
         for name in x[2]:
@@ -481,7 +496,7 @@ def get_files_with_extension(folder_name, extension=['safetensors']):
             else:
                 y = folder
         names.append(y)     
-    return names
+    return names, inpaint_path
 
 
 def brushnet_blocks(sd):
