@@ -39,6 +39,10 @@ ComfySDLayers = [comfy.ops.disable_weight_init.Conv2d,
                  comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock
                  ]
 
+ModelsToUnload = [comfy.sd1_clip.SD1ClipModel, 
+                  comfy.ldm.models.autoencoder.AutoencoderKL
+                 ]
+
 class BrushNetLoader:
 
     @classmethod
@@ -282,6 +286,15 @@ class PowerPaint:
         prompt_embeds_pp = (prompt_embedsA * fitting + (1.0 - fitting) * prompt_embedsB).to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
         negative_prompt_embeds_pp = (negative_prompt_embedsA * fitting + (1.0 - fitting) * negative_prompt_embedsB).to(dtype=torch_dtype).to(powerpaint['brushnet'].device)
 
+        # unload vae and CLIPs
+        del vae
+        del clip
+        for loaded_model in comfy.model_management.current_loaded_models:
+            if type(loaded_model.model.model) in ModelsToUnload:
+                comfy.model_management.current_loaded_models.remove(loaded_model)
+                loaded_model.model_unload()
+                del loaded_model
+
         # apply patch to code
 
         if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample.__doc__:
@@ -363,6 +376,14 @@ class BrushNet:
         conditioning_latents = get_image_latents(masked_image, mask, vae, scaling_factor)
         conditioning_latents[0] = conditioning_latents[0].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         conditioning_latents[1] = conditioning_latents[1].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
+
+        # unload vae
+        del vae
+        for loaded_model in comfy.model_management.current_loaded_models:
+            if type(loaded_model.model.model) in ModelsToUnload:
+                comfy.model_management.current_loaded_models.remove(loaded_model)
+                loaded_model.model_unload()
+                del loaded_model
 
         # prepare embeddings
 
