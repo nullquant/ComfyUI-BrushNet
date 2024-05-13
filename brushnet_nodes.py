@@ -583,7 +583,7 @@ def get_files_with_extension(folder_name, extension=['safetensors']):
         inpaint_path = os.path.join(folder_paths.models_dir, folder_name)
     
     if not os.path.isdir(inpaint_path):
-        inpaint_path = os.path.join(folder_paths.base_dir, inpaint_path)
+        inpaint_path = os.path.join(folder_paths.base_path, inpaint_path)
     if not os.path.isdir(inpaint_path):
         raise Exception("Can't find", folder_name, " path")
 
