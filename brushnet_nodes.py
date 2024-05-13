@@ -1018,6 +1018,7 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
                 h += self.brushnet_sample.to(h.dtype).to(h.device)
             else:
                 h += self.brushnet_sample
+            self.brushnet_sample = 0
         return h
 
     for i, block in enumerate(model.model.diffusion_model.input_blocks):
