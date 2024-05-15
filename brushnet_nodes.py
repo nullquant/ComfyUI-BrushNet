@@ -752,6 +752,16 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
     return conditioning_latents
 
 
+# Check and add 'model_patch' to model.model_options['transformer_options']
+def add_model_patch_option(model):
+    if 'transformer_options' not in model.model_options:
+        model.model_options['transformer_options'] = {}
+    to = model.model_options['transformer_options']
+    if "model_patch" not in to:
+        to["model_patch"] = {}
+    return to
+
+
 # Model needs current step number and cfg at inference step. It is possible to write a custom KSampler but I'd like to use ComfyUI's one.
 # The first versions had modified_common_ksampler, but it broke custom KSampler nodes
 def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, 
@@ -782,183 +792,177 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
 @torch.inference_mode()
 def brushnet_inference(x, timesteps, transformer_options):
     if 'model_patch' not in transformer_options:
-        print('BrushNet inference: there is no model_patch in transformer_options')
+        print('BrushNet inference: there is no model_patch key in transformer_options')
         return ([], 0, [])
     mp = transformer_options['model_patch']
-    if 'brushnet_model' not in mp:
-        print('BrushNet inference: there is no brushnet_model in transformer_options')
+    if 'brushnet' not in mp:
+        print('BrushNet inference: there is no brushnet key in mdel_patch')
         return ([], 0, [])
-    brushnet = mp['brushnet_model']
-    if isinstance(brushnet, BrushNetModel) or isinstance(brushnet, PowerPaintModel):
-        torch_dtype = mp['brushnet_dtype']
-        cl_list = mp['brushnet_latents']
-        brushnet_conditioning_scale, control_guidance_start, control_guidance_end = mp['brushnet_controls']
-        pe = mp['brushnet_prompt']
-        npe = mp['brushnet_negative_prompt']
-        ppe, nppe, time_ids = mp['brushnet_add_embeds']
-
-        do_classifier_free_guidance = mp['free_guidance']
-
-        x = x.detach().clone()
-        x = x.to(torch_dtype).to(brushnet.device)
-
-        timesteps = timesteps.detach().clone()
-        timesteps = timesteps.to(torch_dtype).to(brushnet.device)
-
-        all_sigmas = mp['all_sigmas']
-        sigma = transformer_options['sigmas'][0].item()
-        total_steps = all_sigmas.shape[0]
-        step = torch.argmin((all_sigmas - sigma).abs()).item()
-
-        added_cond_kwargs = {}
-
-        if do_classifier_free_guidance and step == 0:
-            print('BrushNet inference: do_classifier_free_guidance is True')
-
-        sub_idx = None
-        if 'ad_params' in transformer_options and 'sub_idxs' in transformer_options['ad_params']:
-            sub_idx = transformer_options['ad_params']['sub_idxs']
-
-        # we have batch input images
-        batch = cl_list[0].shape[0]
-        # we have incoming latents
-        latents_incoming = x.shape[0]
-        # and we already got some
-        latents_got = mp['brushnet_latent_id']
-        if step == 0 or batch > 1:
-            print('BrushNet inference, step = %d: image batch = %d, got %d latents, starting from %d' \
-                    % (step, batch, latents_incoming, latents_got))
-
-        image_latents = []
-        masks = []
-        prompt_embeds = []
-        negative_prompt_embeds = []
-        pooled_prompt_embeds = []
-        negative_pooled_prompt_embeds = []
-        if sub_idx:
-            if step == 0:
-                print('BrushNet inference: AnimateDiff indexes detected and applied')
-
-            batch = len(sub_idx)
-
-            if do_classifier_free_guidance:
-                for i in sub_idx:
-                    image_latents.append(cl_list[0][i][None,:,:,:])
-                    masks.append(cl_list[1][i][None,:,:,:])
-                    prompt_embeds.append(pe)
-                    negative_prompt_embeds.append(npe)
-                    pooled_prompt_embeds.append(ppe)
-                    negative_pooled_prompt_embeds.append(nppe)
-                for i in sub_idx:
-                    image_latents.append(cl_list[0][i][None,:,:,:])
-                    masks.append(cl_list[1][i][None,:,:,:])
-            else:
-                for i in sub_idx:
-                    image_latents.append(cl_list[0][i][None,:,:,:])
-                    masks.append(cl_list[1][i][None,:,:,:])
-                    prompt_embeds.append(pe)
-                    pooled_prompt_embeds.append(ppe)
-        else:
-            # do_classifier_free_guidance = 2 passes, 1st pass is cond, 2nd is uncond
-            continue_batch = True
-            for i in range(latents_incoming):
-                number = latents_got + i
-                if number < batch:
-                    # 1st pass, cond
-                    image_latents.append(cl_list[0][number][None,:,:,:])
-                    masks.append(cl_list[1][number][None,:,:,:])
-                    prompt_embeds.append(pe)
-                    pooled_prompt_embeds.append(ppe)
-                elif do_classifier_free_guidance and number < batch * 2:
-                    # 2nd pass, uncond
-                    image_latents.append(cl_list[0][number-batch][None,:,:,:])
-                    masks.append(cl_list[1][number-batch][None,:,:,:])
-                    negative_prompt_embeds.append(npe)
-                    negative_pooled_prompt_embeds.append(nppe)
-                else:
-                    # latent batch
-                    image_latents.append(cl_list[0][0][None,:,:,:])
-                    masks.append(cl_list[1][0][None,:,:,:])
-                    prompt_embeds.append(pe)
-                    pooled_prompt_embeds.append(ppe)
-                    latents_got = -i
-                    continue_batch = False
-
-            if continue_batch:
-                # we don't have full batch yet
-                if do_classifier_free_guidance:
-                    if number < batch * 2 - 1:
-                        mp['brushnet_latent_id'] = number + 1
-                    else:
-                        mp['brushnet_latent_id'] = 0
-                else:
-                    if number < batch - 1:
-                        mp['brushnet_latent_id'] = number + 1
-                    else:
-                        mp['brushnet_latent_id'] = 0
-            else:
-                mp['brushnet_latent_id'] = 0
-
-        cl = []
-        for il, m in zip(image_latents, masks):
-            cl.append(torch.concat([il, m], dim=1))
-        cl2apply = torch.concat(cl, dim=0)
-
-        conditioning_latents = cl2apply.to(torch_dtype).to(brushnet.device)
-
-        prompt_embeds.extend(negative_prompt_embeds)
-        prompt_embeds = torch.concat(prompt_embeds, dim=0).to(torch_dtype).to(brushnet.device)
-
-        if ppe is not None:
-            added_cond_kwargs = {}
-            added_cond_kwargs['time_ids'] = torch.concat([time_ids] * latents_incoming, dim = 0).to(torch_dtype).to(brushnet.device)
-
-            pooled_prompt_embeds.extend(negative_pooled_prompt_embeds)
-            pooled_prompt_embeds = torch.concat(pooled_prompt_embeds, dim=0).to(torch_dtype).to(brushnet.device)
-            added_cond_kwargs['text_embeds'] = pooled_prompt_embeds
-        else:
-            added_cond_kwargs = None
-
-        if x.shape[2] != conditioning_latents.shape[2] or x.shape[3] != conditioning_latents.shape[3]:
-            if step == 0:
-                print('BrushNet inference: image', conditioning_latents.shape, 'and latent', x.shape, 'have different size, resizing image')
-            conditioning_latents = torch.nn.functional.interpolate(
-                conditioning_latents, size=(
-                    x.shape[2], 
-                    x.shape[3],
-                ), mode='bicubic',
-            ).to(torch_dtype).to(brushnet.device)
-
-        if step == 0:
-            print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
-
-        if step < control_guidance_start or step > control_guidance_end:
-            cond_scale = 0.0
-        else:
-            cond_scale = brushnet_conditioning_scale
-
-        return brushnet(x,
-                        encoder_hidden_states=prompt_embeds,
-                        brushnet_cond=conditioning_latents,
-                        timestep = timesteps,
-                        conditioning_scale=cond_scale,
-                        guess_mode=False,
-                        added_cond_kwargs=added_cond_kwargs,
-                        return_dict=False,
-                    )
-    else:
+    bo = mp['brushnet']
+    if 'model' not in bo:
+        print('BrushNet inference: there is no model key in brushnet')
+        return ([], 0, [])
+    brushnet = bo['model']
+    if not (isinstance(brushnet, BrushNetModel) or isinstance(brushnet, PowerPaintModel)):
         print('BrushNet model is not a BrushNetModel class')
         return ([], 0, [])
 
+    torch_dtype = bo['dtype']
+    cl_list = bo['latents']
+    brushnet_conditioning_scale, control_guidance_start, control_guidance_end = bo['controls']
+    pe = bo['prompt_embeds']
+    npe = bo['negative_prompt_embeds']
+    ppe, nppe, time_ids = bo['add_embeds']
 
-# Check and add 'model_patch' to model.model_options['transformer_options']
-def add_model_patch_option(model):
-    if 'transformer_options' not in model.model_options:
-        model.model_options['transformer_options'] = {}
-    to = model.model_options['transformer_options']
-    if "model_patch" not in to:
-        to["model_patch"] = {}
-    return to
+    do_classifier_free_guidance = mp['free_guidance']
+
+    x = x.detach().clone()
+    x = x.to(torch_dtype).to(brushnet.device)
+
+    timesteps = timesteps.detach().clone()
+    timesteps = timesteps.to(torch_dtype).to(brushnet.device)
+
+    all_sigmas = mp['all_sigmas']
+    sigma = transformer_options['sigmas'][0].item()
+    total_steps = all_sigmas.shape[0]
+    step = torch.argmin((all_sigmas - sigma).abs()).item()
+
+    added_cond_kwargs = {}
+
+    if do_classifier_free_guidance and step == 0:
+        print('BrushNet inference: do_classifier_free_guidance is True')
+
+    sub_idx = None
+    if 'ad_params' in transformer_options and 'sub_idxs' in transformer_options['ad_params']:
+        sub_idx = transformer_options['ad_params']['sub_idxs']
+
+    # we have batch input images
+    batch = cl_list[0].shape[0]
+    # we have incoming latents
+    latents_incoming = x.shape[0]
+    # and we already got some
+    latents_got = bo['latent_id']
+    if step == 0 or batch > 1:
+        print('BrushNet inference, step = %d: image batch = %d, got %d latents, starting from %d' \
+                % (step, batch, latents_incoming, latents_got))
+
+    image_latents = []
+    masks = []
+    prompt_embeds = []
+    negative_prompt_embeds = []
+    pooled_prompt_embeds = []
+    negative_pooled_prompt_embeds = []
+    if sub_idx:
+        if step == 0:
+            print('BrushNet inference: AnimateDiff indexes detected and applied')
+
+        batch = len(sub_idx)
+
+        if do_classifier_free_guidance:
+            for i in sub_idx:
+                image_latents.append(cl_list[0][i][None,:,:,:])
+                masks.append(cl_list[1][i][None,:,:,:])
+                prompt_embeds.append(pe)
+                negative_prompt_embeds.append(npe)
+                pooled_prompt_embeds.append(ppe)
+                negative_pooled_prompt_embeds.append(nppe)
+            for i in sub_idx:
+                image_latents.append(cl_list[0][i][None,:,:,:])
+                masks.append(cl_list[1][i][None,:,:,:])
+        else:
+            for i in sub_idx:
+                image_latents.append(cl_list[0][i][None,:,:,:])
+                masks.append(cl_list[1][i][None,:,:,:])
+                prompt_embeds.append(pe)
+                pooled_prompt_embeds.append(ppe)
+    else:
+        # do_classifier_free_guidance = 2 passes, 1st pass is cond, 2nd is uncond
+        continue_batch = True
+        for i in range(latents_incoming):
+            number = latents_got + i
+            if number < batch:
+                # 1st pass, cond
+                image_latents.append(cl_list[0][number][None,:,:,:])
+                masks.append(cl_list[1][number][None,:,:,:])
+                prompt_embeds.append(pe)
+                pooled_prompt_embeds.append(ppe)
+            elif do_classifier_free_guidance and number < batch * 2:
+                # 2nd pass, uncond
+                image_latents.append(cl_list[0][number-batch][None,:,:,:])
+                masks.append(cl_list[1][number-batch][None,:,:,:])
+                negative_prompt_embeds.append(npe)
+                negative_pooled_prompt_embeds.append(nppe)
+            else:
+                # latent batch
+                image_latents.append(cl_list[0][0][None,:,:,:])
+                masks.append(cl_list[1][0][None,:,:,:])
+                prompt_embeds.append(pe)
+                pooled_prompt_embeds.append(ppe)
+                latents_got = -i
+                continue_batch = False
+
+        if continue_batch:
+            # we don't have full batch yet
+            if do_classifier_free_guidance:
+                if number < batch * 2 - 1:
+                    bo['latent_id'] = number + 1
+                else:
+                    bo['latent_id'] = 0
+            else:
+                if number < batch - 1:
+                    bo['latent_id'] = number + 1
+                else:
+                    bo['latent_id'] = 0
+        else:
+            bo['latent_id'] = 0
+
+    cl = []
+    for il, m in zip(image_latents, masks):
+        cl.append(torch.concat([il, m], dim=1))
+    cl2apply = torch.concat(cl, dim=0)
+
+    conditioning_latents = cl2apply.to(torch_dtype).to(brushnet.device)
+
+    prompt_embeds.extend(negative_prompt_embeds)
+    prompt_embeds = torch.concat(prompt_embeds, dim=0).to(torch_dtype).to(brushnet.device)
+
+    if ppe is not None:
+        added_cond_kwargs = {}
+        added_cond_kwargs['time_ids'] = torch.concat([time_ids] * latents_incoming, dim = 0).to(torch_dtype).to(brushnet.device)
+
+        pooled_prompt_embeds.extend(negative_pooled_prompt_embeds)
+        pooled_prompt_embeds = torch.concat(pooled_prompt_embeds, dim=0).to(torch_dtype).to(brushnet.device)
+        added_cond_kwargs['text_embeds'] = pooled_prompt_embeds
+    else:
+        added_cond_kwargs = None
+
+    if x.shape[2] != conditioning_latents.shape[2] or x.shape[3] != conditioning_latents.shape[3]:
+        if step == 0:
+            print('BrushNet inference: image', conditioning_latents.shape, 'and latent', x.shape, 'have different size, resizing image')
+        conditioning_latents = torch.nn.functional.interpolate(
+            conditioning_latents, size=(
+                x.shape[2], 
+                x.shape[3],
+            ), mode='bicubic',
+        ).to(torch_dtype).to(brushnet.device)
+
+    if step == 0:
+        print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
+
+    if step < control_guidance_start or step > control_guidance_end:
+        cond_scale = 0.0
+    else:
+        cond_scale = brushnet_conditioning_scale
+
+    return brushnet(x,
+                    encoder_hidden_states=prompt_embeds,
+                    brushnet_cond=conditioning_latents,
+                    timestep = timesteps,
+                    conditioning_scale=cond_scale,
+                    guess_mode=False,
+                    added_cond_kwargs=added_cond_kwargs,
+                    return_dict=False,
+                )
 
 
 # This is main patch function
@@ -966,60 +970,144 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
                        controls, 
                        prompt_embeds, negative_prompt_embeds,
                        pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids):
-    to = add_model_patch_option(model)
-    to['model_patch']['brushnet_model'] = brushnet
-    to['model_patch']['brushnet_dtype'] = torch_dtype
-    to['model_patch']['brushnet_latents'] = conditioning_latents
-    to['model_patch']['brushnet_controls'] = controls
-    to['model_patch']['brushnet_prompt'] = prompt_embeds
-    to['model_patch']['brushnet_negative_prompt'] = negative_prompt_embeds
-    to['model_patch']['brushnet_add_embeds'] = (pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids)
-    to['model_patch']['brushnet_latent_id'] = 0
-
+    
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
     if is_SDXL:
-        input_blocks = [[0,0],[1,0],[2,0],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1]]
-        output_blocks = [[0,1],[1,1],[2,1],[2,2],[3,1],[4,1],[5,1],[5,2],[6,0],[7,0],[8,0]]
+#        input_blocks = [[0,0],[1,0],[2,0],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1]]
+#        output_blocks = [[0,1],[1,1],[2,1],[2,2],[3,1],[4,1],[5,1],[5,2],[6,0],[7,0],[8,0]]
+#    else:
+#        input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
+#        output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
+        input_blocks = [[0, comfy.ops.disable_weight_init.Conv2d],
+                        [1, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [2, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [3, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
+                        [4, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.attention.SpatialTransformer],
+                        [6, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
+                        [7, comfy.ldm.modules.attention.SpatialTransformer],
+                        [8, comfy.ldm.modules.attention.SpatialTransformer]]
+        middle_block  = [0, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock]
+        output_blocks = [[0, comfy.ldm.modules.attention.SpatialTransformer],
+                        [1, comfy.ldm.modules.attention.SpatialTransformer],
+                        [2, comfy.ldm.modules.attention.SpatialTransformer],
+                        [2, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample],
+                        [3, comfy.ldm.modules.attention.SpatialTransformer],
+                        [4, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample],
+                        [6, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [7, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [8, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock]]
     else:
-        input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
-        output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
-    
-    # patch model `forward` so we can call BrushNet inference and add additional samples to layers
-    if not hasattr(model.model.diffusion_model, 'original_forward'):
-        model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
-    def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
-        # check if this is brushnet patched model
-        if 'model_patch' not in transformer_options or 'brushnet_model' not in transformer_options['model_patch']:
+        input_blocks = [[0, comfy.ops.disable_weight_init.Conv2d],
+                        [1, comfy.ldm.modules.attention.SpatialTransformer],
+                        [2, comfy.ldm.modules.attention.SpatialTransformer],
+                        [3, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
+                        [4, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.attention.SpatialTransformer],
+                        [6, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
+                        [7, comfy.ldm.modules.attention.SpatialTransformer],
+                        [8, comfy.ldm.modules.attention.SpatialTransformer],
+                        [9, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
+                        [10, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [11, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock]]
+        middle_block  = [0, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock]
+        output_blocks = [[0, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [1, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [2, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
+                        [2, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample],
+                        [3, comfy.ldm.modules.attention.SpatialTransformer],
+                        [4, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.attention.SpatialTransformer],
+                        [5, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample],
+                        [6, comfy.ldm.modules.attention.SpatialTransformer],
+                        [7, comfy.ldm.modules.attention.SpatialTransformer],
+                        [8, comfy.ldm.modules.attention.SpatialTransformer],
+                        [8, comfy.ldm.modules.diffusionmodules.openaimodel.Upsample],
+                        [9, comfy.ldm.modules.attention.SpatialTransformer],
+                        [10, comfy.ldm.modules.attention.SpatialTransformer],
+                        [11, comfy.ldm.modules.attention.SpatialTransformer]]
+
+    def last_layer_index(block, tp):
+        layer_list = []
+        for layer in block:
+            layer_list.append(type(layer))
+        layer_list.reverse()
+        if tp not in layer_list:
+            return -1, layer_list.reverse()
+        return len(layer_list) - 1 - layer_list.index(tp), layer_list
+
+    def brushnet_forward(model, x, timesteps, transformer_options):
+        if 'brushnet' not in transformer_options['model_patch']:
             input_samples = []
             mid_sample = 0
             output_samples = []
         else:    
             # brushnet inference
             input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+
         # give additional samples to blocks
-        for i, block in enumerate(self.input_blocks):
-            for j, layer in enumerate(block):
-                if [i,j] in input_blocks:
-                    layer.brushnet_sample = input_samples.pop(0) if input_samples else 0
-        self.middle_block[-1].brushnet_sample = mid_sample
-        for i, block in enumerate(self.output_blocks):
-            for j, layer in enumerate(block):
-                if [i,j] in output_blocks:
-                    layer.brushnet_sample = output_samples.pop(0) if output_samples else 0
+        for i, tp in input_blocks:
+            idx, layer_list = last_layer_index(model.input_blocks[i], tp)
+            if idx < 0:
+                print("BrushNet can't find", tp, "layer in", i,"input block:", layer_list)
+                continue
+            model.input_blocks[i][idx].add_sample_after = input_samples.pop(0) if input_samples else 0
+
+        idx, layer_list = last_layer_index(model.middle_block, middle_block[1])
+        if idx < 0:
+            print("BrushNet can't find", middle_block[1], "layer in middle block", layer_list)
+        model.middle_block[idx].add_sample_after = mid_sample
+
+        for i, tp in output_blocks:
+            idx, layer_list = last_layer_index(model.output_blocks[i], tp)
+            if idx < 0:
+                print("BrushNet can't find", tp, "layer in", i,"outnput block:", layer_list)
+                continue
+            model.output_blocks[i][idx].add_sample_after = output_samples.pop(0) if output_samples else 0
+
+
+    to = add_model_patch_option(model)
+    mp = to['model_patch']
+    mp['forward'] = [brushnet_forward]
+    if 'brushnet' not in mp:
+        mp['brushnet'] = {}
+    bo = mp['brushnet']
+    bo['model'] = brushnet
+    bo['dtype'] = torch_dtype
+    bo['latents'] = conditioning_latents
+    bo['controls'] = controls
+    bo['prompt_embeds'] = prompt_embeds
+    bo['negative_prompt_embeds'] = negative_prompt_embeds
+    bo['add_embeds'] = (pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids)
+    bo['latent_id'] = 0
+
+    # patch model `forward` so we can call BrushNet inference and add additional samples to layers
+    if not hasattr(model.model.diffusion_model, 'original_forward'):
+        model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
+
+    def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
+        # check if there are patchs to execute
+        if 'model_patch' not in transformer_options or 'forward' not in transformer_options['model_patch']:
+            return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
+        # execute all patches        
+        for method in transformer_options['model_patch']['forward']:
+            method(self, x, timesteps, transformer_options)
         return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
+    
     model.model.diffusion_model.forward = types.MethodType(forward_patched_by_brushnet, model.model.diffusion_model)
 
     # patch layers `forward` so we can apply brushnet
     def forward_patched_by_brushnet(self, x, *args, **kwargs):
         h = self.original_forward(x, *args, **kwargs)
-        if hasattr(self, 'brushnet_sample') and type(self) in ComfySDLayers:
-            if torch.is_tensor(self.brushnet_sample):
-                #print(type(self), h.shape, self.brushnet_sample.shape)
-                h += self.brushnet_sample.to(h.dtype).to(h.device)
+        if hasattr(self, 'add_sample_after') and type(self):
+            if torch.is_tensor(self.add_sample_after):
+                h += self.add_sample_after.to(h.dtype).to(h.device)
             else:
-                h += self.brushnet_sample
-            self.brushnet_sample = 0
+                h += self.add_sample_after
+            self.add_sample_after = 0
         return h
 
     for i, block in enumerate(model.model.diffusion_model.input_blocks):
@@ -1027,14 +1115,17 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
             if not hasattr(layer, 'original_forward'):
                 layer.original_forward = layer.forward
             layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
+            layer.add_sample_after = 0
 
     for j, layer in enumerate(model.model.diffusion_model.middle_block):
         if not hasattr(layer, 'original_forward'):
             layer.original_forward = layer.forward
         layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
+        layer.add_sample_after = 0
 
     for i, block in enumerate(model.model.diffusion_model.output_blocks):
         for j, layer in enumerate(block):
             if not hasattr(layer, 'original_forward'):
                 layer.original_forward = layer.forward
             layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
+            layer.add_sample_after = 0
