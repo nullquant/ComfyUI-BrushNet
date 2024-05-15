@@ -588,12 +588,16 @@ def get_files_with_extension(folder_name, extension=['safetensors']):
         return ([], '')
         #raise Exception("Can't find", folder_name, " path")
 
+    while not inpaint_path[-1].isalpha():
+        inpaint_path = inpaint_path[:-1]
+
     abs_list = []
     for x in os.walk(inpaint_path):
         for name in x[2]:
             for ext in extension:
                 if ext in name:
                     abs_list.append(os.path.join(x[0], name))
+    abs_list = set(abs_list)                    
     names = []
     for x in abs_list:
         remain = x
