@@ -1,19 +1,21 @@
 import torch
 import torchvision.transforms as T
 import torch.nn.functional as F
-import math
+#import math
 
 import os
 import folder_paths
 
-import sys
-from sys import platform
+#import sys
+#from sys import platform
 # Get the parent directory of 'comfy' and add it to the Python path
-comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-sys.path.append(comfy_parent_dir)
+#comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
+#sys.path.append(comfy_parent_dir)
 import comfy
 
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+
+from .model_patch import add_model_patch_option, patch_model_function_wrapper
 
 from .brushnet.brushnet import BrushNetModel
 from .brushnet.brushnet_ca import BrushNetModel as PowerPaintModel
@@ -22,9 +24,9 @@ from .brushnet.powerpaint_utils import TokenizerWrapper, add_tokens
 
 import types
 from typing import Tuple
-import warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="torch")
-warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
+#import warnings
+#warnings.filterwarnings("ignore", category=UserWarning, module="torch")
+#warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
@@ -34,11 +36,11 @@ powerpaint_config_file = os.path.join(current_directory,'brushnet', 'powerpaint.
 sd15_scaling_factor = 0.18215
 sdxl_scaling_factor = 0.13025
 
-ComfySDLayers = [comfy.ops.disable_weight_init.Conv2d, 
-                 comfy.ldm.modules.attention.SpatialTransformer,
-                 comfy.ldm.modules.diffusionmodules.openaimodel.Downsample,
-                 comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock
-                 ]
+#ComfySDLayers = [comfy.ops.disable_weight_init.Conv2d, 
+#                 comfy.ldm.modules.attention.SpatialTransformer,
+#                 comfy.ldm.modules.diffusionmodules.openaimodel.Downsample,
+#                 comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock
+#                 ]
 
 ModelsToUnload = [comfy.sd1_clip.SD1ClipModel, 
                   comfy.ldm.models.autoencoder.AutoencoderKL
@@ -297,12 +299,6 @@ class PowerPaint:
                 loaded_model.model_unload()
                 del loaded_model
 
-        # apply patch to code
-
-        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample.__doc__:
-            comfy.samplers.original_sample = comfy.samplers.sample
-            comfy.samplers.sample = modified_sample
-
         # apply patch to model
 
         brushnet_conditioning_scale = scale
@@ -414,12 +410,6 @@ class BrushNet:
             pooled_prompt_embeds = None
             negative_pooled_prompt_embeds = None
             time_ids = None
-
-        # apply patch to code
-
-        if comfy.samplers.sample.__doc__ is None or 'BrushNet' not in comfy.samplers.sample.__doc__:
-            comfy.samplers.original_sample = comfy.samplers.sample
-            comfy.samplers.sample = modified_sample
 
         # apply patch to model
 
@@ -756,42 +746,6 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
     return conditioning_latents
 
 
-# Check and add 'model_patch' to model.model_options['transformer_options']
-def add_model_patch_option(model):
-    if 'transformer_options' not in model.model_options:
-        model.model_options['transformer_options'] = {}
-    to = model.model_options['transformer_options']
-    if "model_patch" not in to:
-        to["model_patch"] = {}
-    return to
-
-
-# Model needs current step number and cfg at inference step. It is possible to write a custom KSampler but I'd like to use ComfyUI's one.
-# The first versions had modified_common_ksampler, but it broke custom KSampler nodes
-def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigmas, model_options={}, 
-           latent_image=None, denoise_mask=None, callback=None, disable_pbar=False, seed=None):
-    '''
-    Modified by BrushNet nodes
-    '''
-    cfg_guider = comfy.samplers.CFGGuider(model)
-    cfg_guider.set_conds(positive, negative)
-    cfg_guider.set_cfg(cfg)
-
-    ### Modified part ######################################################################
-    #
-    to = add_model_patch_option(model)
-    to['model_patch']['all_sigmas'] = sigmas
-
-    if math.isclose(cfg, 1.0) and model_options.get("disable_cfg1_optimization", False) == False:
-        to['model_patch']['free_guidance'] = False
-    else:
-        to['model_patch']['free_guidance'] = True
-    #
-    #######################################################################################
-       
-    return cfg_guider.sample(noise, latent_image, sampler, sigmas, denoise_mask, callback, disable_pbar, seed)
-
-
 # Main function where magic happens
 @torch.inference_mode()
 def brushnet_inference(x, timesteps, transformer_options):
@@ -826,15 +780,13 @@ def brushnet_inference(x, timesteps, transformer_options):
     timesteps = timesteps.detach().clone()
     timesteps = timesteps.to(torch_dtype).to(brushnet.device)
 
-    all_sigmas = mp['all_sigmas']
-    sigma = transformer_options['sigmas'][0].item()
-    total_steps = all_sigmas.shape[0]
-    step = torch.argmin((all_sigmas - sigma).abs()).item()
+    total_steps = mp['total_steps']
+    step = mp['step']
 
     added_cond_kwargs = {}
 
     if do_classifier_free_guidance and step == 0:
-        print('BrushNet inference: do_classifier_free_guidance is True')
+        print('BrushNet inference: do_classifier_free_guidance is True', len(transformer_options['cond_or_uncond']) > 1)
 
     sub_idx = None
     if 'ad_params' in transformer_options and 'sub_idxs' in transformer_options['ad_params']:
@@ -1072,13 +1024,14 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
                 continue
             model.output_blocks[i][idx].add_sample_after = output_samples.pop(0) if output_samples else 0
 
+    patch_model_function_wrapper(model, brushnet_forward)
 
     to = add_model_patch_option(model)
     mp = to['model_patch']
-    mp['forward'] = [brushnet_forward]
     if 'brushnet' not in mp:
         mp['brushnet'] = {}
     bo = mp['brushnet']
+
     bo['model'] = brushnet
     bo['dtype'] = torch_dtype
     bo['latents'] = conditioning_latents
@@ -1089,19 +1042,19 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     bo['latent_id'] = 0
 
     # patch model `forward` so we can call BrushNet inference and add additional samples to layers
-    if not hasattr(model.model.diffusion_model, 'original_forward'):
-        model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
+    #if not hasattr(model.model.diffusion_model, 'original_forward'):
+    #    model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
 
-    def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
-        # check if there are patchs to execute
-        if 'model_patch' not in transformer_options or 'forward' not in transformer_options['model_patch']:
-            return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
-        # execute all patches        
-        for method in transformer_options['model_patch']['forward']:
-            method(self, x, timesteps, transformer_options)
-        return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
+    #def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
+    #    # check if there are patchs to execute
+    #    if 'model_patch' not in transformer_options or 'forward' not in transformer_options['model_patch']:
+    #        return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
+    #    # execute all patches        
+    #    for method in transformer_options['model_patch']['forward']:
+    #        method(self, x, timesteps, transformer_options)
+    #    return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
     
-    model.model.diffusion_model.forward = types.MethodType(forward_patched_by_brushnet, model.model.diffusion_model)
+    #model.model.diffusion_model.forward = types.MethodType(forward_patched_by_brushnet, model.model.diffusion_model)
 
     # patch layers `forward` so we can apply brushnet
     def forward_patched_by_brushnet(self, x, *args, **kwargs):
