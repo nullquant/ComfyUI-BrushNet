@@ -773,8 +773,8 @@ def brushnet_inference(x, timesteps, transformer_options):
     npe = bo['negative_prompt_embeds']
     ppe, nppe, time_ids = bo['add_embeds']
 
-    do_classifier_free_guidance = mp['free_guidance']
-    #do_classifier_free_guidance = len(transformer_options['cond_or_uncond']) > 1
+    #do_classifier_free_guidance = mp['free_guidance']
+    do_classifier_free_guidance = len(transformer_options['cond_or_uncond']) > 1
 
     x = x.detach().clone()
     x = x.to(torch_dtype).to(brushnet.device)
@@ -788,7 +788,7 @@ def brushnet_inference(x, timesteps, transformer_options):
     added_cond_kwargs = {}
 
     if do_classifier_free_guidance and step == 0:
-        print('BrushNet inference: do_classifier_free_guidance is True', len(transformer_options['cond_or_uncond']) > 1)
+        print('BrushNet inference: do_classifier_free_guidance is True')
 
     sub_idx = None
     if 'ad_params' in transformer_options and 'sub_idxs' in transformer_options['ad_params']:

@@ -102,11 +102,11 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
     #
     to = add_model_patch_option(model)
     to['model_patch']['all_sigmas'] = sigmas
-
-    if math.isclose(cfg, 1.0) and model_options.get("disable_cfg1_optimization", False) == False:
-        to['model_patch']['free_guidance'] = False
-    else:
-        to['model_patch']['free_guidance'] = True
+    #
+    #if math.isclose(cfg, 1.0) and model_options.get("disable_cfg1_optimization", False) == False:
+    #    to['model_patch']['free_guidance'] = False
+    #else:
+    #    to['model_patch']['free_guidance'] = True
     #
     #######################################################################################
        
