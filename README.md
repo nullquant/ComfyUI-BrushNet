@@ -1,10 +1,16 @@
 ## ComfyUI-BrushNet
 
-Custom nodes for ComfyUI allow to inpaint using Brushnet:  ["BrushNet: A Plug-and-Play Image Inpainting Model with Decomposed Dual-Branch Diffusion"](https://arxiv.org/abs/2403.06976).
+These are custom nodes for ComfyUI native implementation of 
 
-My contribution is limited to the ComfyUI adaptation, and all credit goes to the authors of the paper.
+- Brushnet:  ["BrushNet: A Plug-and-Play Image Inpainting Model with Decomposed Dual-Branch Diffusion"](https://arxiv.org/abs/2403.06976) 
+- PowerPaint: [A Task is Worth One Word: Learning with Task Prompts for High-Quality Versatile Image Inpainting](https://arxiv.org/abs/2312.03594) 
+- HiDiffusion: [HiDiffusion: Unlocking Higher-Resolution Creativity and Efficiency in Pretrained Diffusion Models](https://arxiv.org/abs/2311.17528)
+
+My contribution is limited to the ComfyUI adaptation, and all credit goes to the authors of the papers.
 
 ## Updates
+
+May 16, 2024. Internal rework to improve compatibility with other nodes. [RAUNet](RAUNET.md) is implemented.
 
 May 12, 2024. CutForInpaint node, see [example](BIG_IMAGE.md).
 
@@ -43,7 +49,7 @@ The checkpoint in `segmentation_mask_brushnet_ckpt` provides checkpoints trained
 `segmentation_mask_brushnet_ckpt` and `random_mask_brushnet_ckpt` contains BrushNet for SD 1.5 models while 
 `segmentation_mask_brushnet_ckpt_sdxl_v0` and `random_mask_brushnet_ckpt_sdxl_v0` for SDXL.
 
-You should place `diffusion_pytorch_model.safetensors` files to your `models/inpaint` folder.
+You should place `diffusion_pytorch_model.safetensors` files to your `models/inpaint` folder. You can also specify `inpaint` folder in your `extra_model_paths.yaml`.
 
 For PowerPaint you should download three files. Both `diffusion_pytorch_model.safetensors` and `pytorch_model.bin` from [here](https://huggingface.co/JunhaoZhuang/PowerPaint_v2/tree/main/PowerPaint_Brushnet) should be placed in your `models/inpaint` folder.
 
@@ -220,12 +226,11 @@ List of known uncompartible nodes.
 - [WASasquatch's FreeU_Advanced](https://github.com/WASasquatch/FreeU_Advanced/tree/main)
 - [blepping's jank HiDiffusion](https://github.com/blepping/comfyui_jankhidiffusion)
 
-I will think how to avoid it.
-
 ## Credits
 
 The code is based on 
 
 - [BrushNet](https://github.com/TencentARC/BrushNet)
 - [PowerPaint](https://github.com/zhuang2002/PowerPaint)
+- [HiDiffusion](https://github.com/megvii-research/HiDiffusion)
 - [diffusers](https://github.com/huggingface/diffusers)

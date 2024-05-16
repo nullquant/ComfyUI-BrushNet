@@ -1,19 +1,20 @@
+import os
+import types
+from typing import Tuple
+
 import torch
 import torchvision.transforms as T
 import torch.nn.functional as F
-#import math
-
-import os
-import folder_paths
+from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
 #import sys
 #from sys import platform
 # Get the parent directory of 'comfy' and add it to the Python path
 #comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 #sys.path.append(comfy_parent_dir)
-import comfy
 
-from accelerate import init_empty_weights, load_checkpoint_and_dispatch
+import comfy
+import folder_paths
 
 from .model_patch import add_model_patch_option, patch_model_function_wrapper
 
@@ -22,12 +23,6 @@ from .brushnet.brushnet_ca import BrushNetModel as PowerPaintModel
 
 from .brushnet.powerpaint_utils import TokenizerWrapper, add_tokens
 
-import types
-from typing import Tuple
-#import warnings
-#warnings.filterwarnings("ignore", category=UserWarning, module="torch")
-#warnings.filterwarnings("ignore", category=UserWarning, module="safetensors")
-
 current_directory = os.path.dirname(os.path.abspath(__file__))
 brushnet_config_file = os.path.join(current_directory, 'brushnet', 'brushnet.json')
 brushnet_xl_config_file = os.path.join(current_directory, 'brushnet', 'brushnet_xl.json')
@@ -35,12 +30,6 @@ powerpaint_config_file = os.path.join(current_directory,'brushnet', 'powerpaint.
 
 sd15_scaling_factor = 0.18215
 sdxl_scaling_factor = 0.13025
-
-#ComfySDLayers = [comfy.ops.disable_weight_init.Conv2d, 
-#                 comfy.ldm.modules.attention.SpatialTransformer,
-#                 comfy.ldm.modules.diffusionmodules.openaimodel.Downsample,
-#                 comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock
-#                 ]
 
 ModelsToUnload = [comfy.sd1_clip.SD1ClipModel, 
                   comfy.ldm.models.autoencoder.AutoencoderKL
@@ -587,7 +576,9 @@ def get_files_with_extension(folder_name, extension=['safetensors']):
             for ext in extension:
                 if ext in name:
                     abs_list.append(os.path.join(x[0], name))
-    abs_list = set(abs_list)                    
+
+    abs_list = sorted(list(set(abs_list)))
+
     names = []
     for x in abs_list:
         remain = x
@@ -995,7 +986,7 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
             return -1, layer_list.reverse()
         return len(layer_list) - 1 - layer_list.index(tp), layer_list
 
-    def brushnet_forward(model, x, timesteps, transformer_options):
+    def brushnet_forward(model, x, timesteps, transformer_options, control):
         if 'brushnet' not in transformer_options['model_patch']:
             input_samples = []
             mid_sample = 0
@@ -1060,8 +1051,12 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     def forward_patched_by_brushnet(self, x, *args, **kwargs):
         h = self.original_forward(x, *args, **kwargs)
         if hasattr(self, 'add_sample_after') and type(self):
-            if torch.is_tensor(self.add_sample_after):
-                h += self.add_sample_after.to(h.dtype).to(h.device)
+            to_add = self.add_sample_after
+            if torch.is_tensor(to_add):
+                # interpolate due to RAUNet
+                if h.shape[2] != to_add.shape[2] or h.shape[3] != to_add.shape[3]:
+                    to_add = torch.nn.functional.interpolate(to_add, size=(h.shape[2], h.shape[3]), mode='bicubic')                  
+                h += to_add.to(h.dtype).to(h.device)
             else:
                 h += self.add_sample_after
             self.add_sample_after = 0
