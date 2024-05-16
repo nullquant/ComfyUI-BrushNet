@@ -377,6 +377,16 @@ class BrushNet:
         prompt_embeds = positive[0][0].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         negative_prompt_embeds = negative[0][0].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
 
+        max_tokens = max(prompt_embeds.shape[1], negative_prompt_embeds.shape[1])
+        if prompt_embeds.shape[1] < max_tokens:
+            multiplier = max_tokens // 77 - prompt_embeds.shape[1] // 77
+            prompt_embeds = torch.concat([prompt_embeds] + [prompt_embeds[:,-77:,:]] * multiplier, dim=1)
+            print('BrushNet: negative prompt more than 75 tokens:', negative_prompt_embeds.shape, 'multiplying prompt_embeds')
+        if negative_prompt_embeds.shape[1] < max_tokens:
+            multiplier = max_tokens // 77 - negative_prompt_embeds.shape[1] // 77
+            negative_prompt_embeds = torch.concat([negative_prompt_embeds] + [negative_prompt_embeds[:,-77:,:]] * multiplier, dim=1)
+            print('BrushNet: positive prompt more than 75 tokens:', prompt_embeds.shape, 'multiplying negative_prompt_embeds')
+
         if len(positive[0]) > 1 and 'pooled_output' in positive[0][1] and positive[0][1]['pooled_output'] is not None:
             pooled_prompt_embeds = positive[0][1]['pooled_output'].to(dtype=torch_dtype).to(brushnet['brushnet'].device)
         else:
@@ -764,6 +774,7 @@ def brushnet_inference(x, timesteps, transformer_options):
     ppe, nppe, time_ids = bo['add_embeds']
 
     do_classifier_free_guidance = mp['free_guidance']
+    #do_classifier_free_guidance = len(transformer_options['cond_or_uncond']) > 1
 
     x = x.detach().clone()
     x = x.to(torch_dtype).to(brushnet.device)
@@ -800,6 +811,7 @@ def brushnet_inference(x, timesteps, transformer_options):
     pooled_prompt_embeds = []
     negative_pooled_prompt_embeds = []
     if sub_idx:
+        # AnimateDiff indexes detected
         if step == 0:
             print('BrushNet inference: AnimateDiff indexes detected and applied')
 
@@ -921,11 +933,6 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
     if is_SDXL:
-#        input_blocks = [[0,0],[1,0],[2,0],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1]]
-#        output_blocks = [[0,1],[1,1],[2,1],[2,2],[3,1],[4,1],[5,1],[5,2],[6,0],[7,0],[8,0]]
-#    else:
-#        input_blocks = [[0,0],[1,1],[2,1],[3,0],[4,1],[5,1],[6,0],[7,1],[8,1],[9,0],[10,0],[11,0]]
-#        output_blocks = [[0,0],[1,0],[2,0],[2,1],[3,1],[4,1],[5,1],[5,2],[6,1],[7,1],[8,1],[8,2],[9,1],[10,1],[11,1]]
         input_blocks = [[0, comfy.ops.disable_weight_init.Conv2d],
                         [1, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
                         [2, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
@@ -1031,21 +1038,6 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     bo['negative_prompt_embeds'] = negative_prompt_embeds
     bo['add_embeds'] = (pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids)
     bo['latent_id'] = 0
-
-    # patch model `forward` so we can call BrushNet inference and add additional samples to layers
-    #if not hasattr(model.model.diffusion_model, 'original_forward'):
-    #    model.model.diffusion_model.original_forward = model.model.diffusion_model.forward
-
-    #def forward_patched_by_brushnet(self, x, timesteps=None, context=None, y=None, control=None, transformer_options={}, **kwargs):
-    #    # check if there are patchs to execute
-    #    if 'model_patch' not in transformer_options or 'forward' not in transformer_options['model_patch']:
-    #        return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
-    #    # execute all patches        
-    #    for method in transformer_options['model_patch']['forward']:
-    #        method(self, x, timesteps, transformer_options)
-    #    return self.original_forward(x, timesteps, context, y, control, transformer_options, **kwargs)
-    
-    #model.model.diffusion_model.forward = types.MethodType(forward_patched_by_brushnet, model.model.diffusion_model)
 
     # patch layers `forward` so we can apply brushnet
     def forward_patched_by_brushnet(self, x, *args, **kwargs):
