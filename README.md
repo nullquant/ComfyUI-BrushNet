@@ -31,7 +31,6 @@ Apr 11, 2024. Initial commit.
 - [x] BrushNet SDXL
 - [x] PowerPaint v2
 - [x] Image batch
-- [ ] Compatibility with `jank HiDiffusion` and similar nodes
 
 ## Installation
 
@@ -66,40 +65,6 @@ Yours can be different.
 Below is an example for the intended workflow. The [workflow](example/BrushNet_basic.json) for the example can be found inside the 'example' directory.
 
 ![example workflow](example/BrushNet_basic.png?raw=true)
-
-### Parameters
-
-#### Brushnet Loader
-
-- `dtype`, defaults to `torch.float16`. The torch.dtype of BrushNet. If you have old GPU or NVIDIA 16 series card try to switch to `torch.float32`.
-
-#### Brushnet
-
-- `scale`, defaults to 1.0: The "strength" of BrushNet. The outputs of the BrushNet are multiplied by `scale` before they are added to the residual in the original unet.
-- `start_at`, defaults to 0: step at which the BrushNet starts applying.
-- `end_at`, defaults to 10000: step at which the BrushNet stops applying.
-
-[Here](PARAMS.md) are examples of use these two last parameters.
-
-#### PowerPaint
-
-- `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
-- `fitting`: PowerPaint fitting degree.
-- `function`: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.
-
-When using certain network functions, the authors of PowerPaint recommend adding phrases to the prompt:
-
-- object removal: `empty scene blur`
-- context aware: `empty scene`
-- outpainting: `empty scene`
-
-Many of ComfyUI users use custom text generation nodes, CLIP nodes and a lot of other conditioning. I don't want to break all of these nodes, so I didn't add prompt updating and instead rely on users. Also my own experiments show that these additions to prompt are not strictly necessary.
-
-The latent image can be from BrushNet node or not, but it should be the same size as original image (divided by 8 in latent space). 
-
-The both conditioning `positive` and `negative` in BrushNet and PowerPaint nodes are used for calculation inside, but then simply copied to output.
-
-Be advised, not all workflows and nodes will work with BrushNet due to its structure. Also put model changes before BrushNet nodes, not after. If you need model to work with image after BrushNet inference use base one (see Upscale example below).
 
 <details>
   <summary>SDXL</summary>
@@ -217,6 +182,48 @@ You should try to add object description to negative prompt and describe empty s
 
 </details>
 
+### Parameters
+
+#### Brushnet Loader
+
+- `dtype`, defaults to `torch.float16`. The torch.dtype of BrushNet. If you have old GPU or NVIDIA 16 series card try to switch to `torch.float32`.
+
+#### Brushnet
+
+- `scale`, defaults to 1.0: The "strength" of BrushNet. The outputs of the BrushNet are multiplied by `scale` before they are added to the residual in the original unet.
+- `start_at`, defaults to 0: step at which the BrushNet starts applying.
+- `end_at`, defaults to 10000: step at which the BrushNet stops applying.
+
+[Here](PARAMS.md) are examples of use these two last parameters.
+
+#### PowerPaint
+
+- `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
+- `fitting`: PowerPaint fitting degree.
+- `function`: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.
+
+When using certain network functions, the authors of PowerPaint recommend adding phrases to the prompt:
+
+- object removal: `empty scene blur`
+- context aware: `empty scene`
+- outpainting: `empty scene`
+
+Many of ComfyUI users use custom text generation nodes, CLIP nodes and a lot of other conditioning. I don't want to break all of these nodes, so I didn't add prompt updating and instead rely on users. Also my own experiments show that these additions to prompt are not strictly necessary.
+
+The latent image can be from BrushNet node or not, but it should be the same size as original image (divided by 8 in latent space). 
+
+The both conditioning `positive` and `negative` in BrushNet and PowerPaint nodes are used for calculation inside, but then simply copied to output.
+
+Be advised, not all workflows and nodes will work with BrushNet due to its structure. Also put model changes before BrushNet nodes, not after. If you need model to work with image after BrushNet inference use base one (see Upscale example below).
+
+#### RAUNet
+
+- `du_start`, defaults to 0: step at which the Downsample/Upsample resize starts applying.
+- `du_end`, defaults to 4: step at which the Downsample/Upsample resize stops applying.
+- `xa_start`, defaults to 4: step at which the CrossAttention resize starts applying.
+- `xa_end`, defaults to 10: step at which the CrossAttention resize stops applying.
+
+For an examples and explanation, please look [here](RAUNET.md).
 
 ## Limitations 
 

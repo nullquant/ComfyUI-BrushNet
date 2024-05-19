@@ -10,13 +10,15 @@ The authors of HiDiffusion invent simple, yet efficient trick to alleviate this 
 
 [workflow](example/RAUNet_basic.json)
 
-The left picture is created using ZavyChromaXL checkpoint on 2048x2048 canvas. The right one using RAUNet.
+The left picture is created using ZavyChromaXL checkpoint on 2048x2048 canvas. The right one uses RAUNet.
 
-In my experience the node is helpful but quite sensitive to its parameters. And there is no universal solution - you should adjust them for every new image you generate. It also lowers model's imagination, you usually get only what you described in prompt. Look at the example: in first you have a forest in the background, but RAUNet deleted all except fox which is described in the prompt.
+In my experience the node is helpful but quite sensitive to its parameters. And there is no universal solution - you should adjust them for every new image you generate. It also lowers model's imagination, you usually get only what you described in the prompt. Look at the example: in first you have a forest in the background, but RAUNet deleted all except fox which is described in the prompt.
+
+From the [paper](https://arxiv.org/abs/2311.17528): Diffusion models denoise from structures to details. RAU-Net introduces additional downsampling and upsampling operations, leading to a certain degree of information loss. In the early stages of denoising, RAU-Net can generate reasonable structures with minimal impact from information loss. However, in the later stages of denoising when generating fine details, the information loss in RAU-Net results in the loss of image details and a degradation in quality.
 
 ### Parameters
 
-There are two independent parts in this node: DU (Downsample/Upsample) and XA (CrossAttension). The four parameters are the start and end steps for applying these parts. 
+There are two independent parts in this node: DU (Downsample/Upsample) and XA (CrossAttention). The four parameters are the start and end steps for applying these parts. 
 
 The Downsample/Upsample part lowers models degrees of freedom. If you apply it a lot (for more steps) the resulting images will have a lot of symmetries.
 

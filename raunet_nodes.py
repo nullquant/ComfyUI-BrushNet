@@ -13,9 +13,9 @@ class RAUNet:
                     {    
                         "model": ("MODEL",),
                         "du_start": ("INT", {"default": 0, "min": 0, "max": 10000}),
-                        "du_end": ("INT", {"default": 8, "min": 0, "max": 10000}),
-                        "xa_start": ("INT", {"default": 8, "min": 0, "max": 10000}),
-                        "xa_end": ("INT", {"default": 20, "min": 0, "max": 10000}),
+                        "du_end": ("INT", {"default": 4, "min": 0, "max": 10000}),
+                        "xa_start": ("INT", {"default": 4, "min": 0, "max": 10000}),
+                        "xa_end": ("INT", {"default": 10, "min": 0, "max": 10000}),
                      },
         }
 
