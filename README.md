@@ -50,7 +50,7 @@ The checkpoint in `segmentation_mask_brushnet_ckpt` provides checkpoints trained
 
 You should place `diffusion_pytorch_model.safetensors` files to your `models/inpaint` folder. You can also specify `inpaint` folder in your `extra_model_paths.yaml`.
 
-For PowerPaint you should download three files. Both `diffusion_pytorch_model.safetensors` and `pytorch_model.bin` from [here](https://huggingface.co/JunhaoZhuang/PowerPaint_v2/tree/main/PowerPaint_Brushnet) should be placed in your `models/inpaint` folder.
+For PowerPaint you should download three files. Both `diffusion_pytorch_model.safetensors` and `pytorch_model.bin` from [here](https://huggingface.co/JunhaoZhuang/PowerPaint-v2-1/tree/main/PowerPaint_Brushnet) should be placed in your `models/inpaint` folder.
 
 Also you need SD1.5 text encoder model `model.fp16.safetensors` from [here](https://huggingface.co/runwayml/stable-diffusion-v1-5/tree/main/text_encoder). It should be placed in your `models/clip` folder.
 
