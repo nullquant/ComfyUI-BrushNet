@@ -1,4 +1,3 @@
-import math
 import torch
 import comfy
 
@@ -35,7 +34,7 @@ def patch_model_function_wrapper(model, forward_patch):
         
         all_sigmas = mp['all_sigmas']
         sigma = to['sigmas'][0].item()
-        total_steps = all_sigmas.shape[0]
+        total_steps = all_sigmas.shape[0] - 1
         step = torch.argmin((all_sigmas - sigma).abs()).item()
 
         mp['step'] = step
@@ -102,6 +101,10 @@ def modified_sample(model, noise, positive, negative, cfg, device, sampler, sigm
     #
     to = add_model_patch_option(model)
     to['model_patch']['all_sigmas'] = sigmas
+    #
+    #sigma_start = model.get_model_object("model_sampling").percent_to_sigma(start_at)
+    #sigma_end = model.get_model_object("model_sampling").percent_to_sigma(end_at)
+    #
     #
     #if math.isclose(cfg, 1.0) and model_options.get("disable_cfg1_optimization", False) == False:
     #    to['model_patch']['free_guidance'] = False

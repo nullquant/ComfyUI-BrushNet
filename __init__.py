@@ -1,10 +1,11 @@
 from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint, PowerPaintCLIPLoader, PowerPaint, CutForInpaint
 from .raunet_nodes import RAUNet
+
 """
 @author: nullquant
 @title: BrushNet
 @nickname: BrushName nodes
-@description: This repository contains an custom nodes for inpaint using BrushNet and PowerPaint models
+@description: These are custom nodes for ComfyUI native implementation of BrushNet, PowerPaint and RAUNet models
 """
 
 # A dictionary that contains all nodes you want to export with their names
