@@ -688,18 +688,23 @@ def prepare_image(image, mask):
 
 def cut_with_mask(mask, width, height):
     iy, ix = (mask == 1).nonzero(as_tuple=True)
-    x_min = ix.min().item()
-    x_max = ix.max().item()
-    y_min = iy.min().item()
-    y_max = iy.max().item()
 
-    if x_max - x_min > width or y_max - y_min > height:
-        raise Exception("Mask is bigger than provided dimensions")
-
-    x_c = (x_min + x_max) / 2.0
-    y_c = (y_min + y_max) / 2.0
-    
     h0, w0 = mask.shape
+    
+    if iy.numel() == 0:
+        x_c = w0 / 2.0
+        y_c = h0 / 2.0
+    else:
+        x_min = ix.min().item()
+        x_max = ix.max().item()
+        y_min = iy.min().item()
+        y_max = iy.max().item()
+
+        if x_max - x_min > width or y_max - y_min > height:
+            raise Exception("Mask is bigger than provided dimensions")
+
+        x_c = (x_min + x_max) / 2.0
+        y_c = (y_min + y_max) / 2.0
     
     width2 = width / 2.0
     height2 = height / 2.0
