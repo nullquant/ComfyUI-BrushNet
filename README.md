@@ -140,6 +140,14 @@ To upscale you should use base model, not BrushNet. The same is true for conditi
 
 [workflow](example/BrushNet_image_batch.json)
 
+If you have OOM problems, you can use Evolved Sampling from [AnimateDiff-Evolved](https://github.com/Kosinkadink/ComfyUI-AnimateDiff-Evolved):
+    
+![example workflow](example/BrushNet_image_big_batch.png?raw=true)
+
+[workflow](example/BrushNet_image_big_batch.json)
+
+In Context Options set context_length to number of images which can be loaded into VRAM. Images will be processed in chunks of this size.
+
 </details>
 
 
