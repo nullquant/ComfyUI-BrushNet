@@ -39,12 +39,11 @@ ModelsToUnload = [comfy.sd1_clip.SD1ClipModel,
 class BrushNetLoader:
 
     @classmethod
-    def INPUT_TYPES(s):
-        files, inpaint_path = get_files_with_extension('inpaint')
-        s.inpaint_path = inpaint_path
+    def INPUT_TYPES(self):
+        self.inpaint_files = get_files_with_extension('inpaint')
         return {"required":
                     {    
-                        "brushnet": (files, ),
+                        "brushnet": ([file for file in self.inpaint_files], ),
                         "dtype": (['float16', 'bfloat16', 'float32', 'float64'], ),
                      },
                 }
@@ -56,7 +55,7 @@ class BrushNetLoader:
     FUNCTION = "brushnet_loading"
 
     def brushnet_loading(self, brushnet, dtype):
-        brushnet_file = os.path.join(self.inpaint_path, brushnet)
+        brushnet_file = os.path.join(self.inpaint_files[brushnet], brushnet)
         is_SDXL = False
         is_PP = False
         sd = comfy.utils.load_torch_file(brushnet_file)
@@ -126,15 +125,13 @@ class BrushNetLoader:
 class PowerPaintCLIPLoader:
 
     @classmethod
-    def INPUT_TYPES(s):
-        inpaint_files, inpaint_path = get_files_with_extension('inpaint', ['bin'])
-        s.inpaint_path = inpaint_path
-        clip_files, clip_path = get_files_with_extension('clip')
-        s.clip_path = clip_path
+    def INPUT_TYPES(self):
+        self.inpaint_files = get_files_with_extension('inpaint', ['.bin'])
+        self.clip_files = get_files_with_extension('clip')
         return {"required":
                     {    
-                        "base": (clip_files, ),
-                        "powerpaint": (inpaint_files, ),
+                        "base": ([file for file in self.clip_files], ),
+                        "powerpaint": ([file for file in self.inpaint_files], ),
                      },
                 }
 
@@ -145,8 +142,8 @@ class PowerPaintCLIPLoader:
     FUNCTION = "ppclip_loading"
 
     def ppclip_loading(self, base, powerpaint):
-        base_CLIP_file = os.path.join(self.clip_path, base)
-        pp_CLIP_file = os.path.join(self.inpaint_path, powerpaint)
+        base_CLIP_file = os.path.join(self.clip_files[base], base)
+        pp_CLIP_file = os.path.join(self.inpaint_files[powerpaint], powerpaint)
 
         pp_clip = comfy.sd.load_clip(ckpt_paths=[base_CLIP_file])
 
@@ -564,43 +561,44 @@ class CutForInpaint:
 
 #### Utility function
 
-def get_files_with_extension(folder_name, extension=['safetensors']):
+def get_files_with_extension(folder_name, extension=['.safetensors']):
 
     try:
-        inpaint_path = folder_paths.get_folder_paths(folder_name)[0]
+        folders = folder_paths.get_folder_paths(folder_name)
     except:
-        inpaint_path = os.path.join(folder_paths.models_dir, folder_name)
+        folders = []
+
+    if not folders:
+        folders = [os.path.join(folder_paths.models_dir, folder_name)]
+    if not os.path.isdir(folders[0]):
+        folders = [os.path.join(folder_paths.base_path, folder_name)]
+    if not os.path.isdir(folders[0]):
+        return {}
     
-    if not os.path.isdir(inpaint_path):
-        inpaint_path = os.path.join(folder_paths.base_path, inpaint_path)
-    if not os.path.isdir(inpaint_path):
-        return ([], '')
-        #raise Exception("Can't find", folder_name, " path")
+    filtered_folders = []
+    for x in folders:
+        if not os.path.isdir(x):
+            continue
+        the_same = False
+        for y in filtered_folders:
+            if os.path.samefile(x, y):
+                the_same = True
+                break
+        if not the_same:
+            filtered_folders.append(x)
 
-    while not inpaint_path[-1].isalpha():
-        inpaint_path = inpaint_path[:-1]
+    if not filtered_folders:
+        return {}
 
-    abs_list = []
-    for x in os.walk(inpaint_path):
-        for name in x[2]:
-            for ext in extension:
-                if ext in name:
-                    abs_list.append(os.path.join(x[0], name))
+    output = {}
+    for x in filtered_folders:
+        files, folders_all = folder_paths.recursive_search(x, excluded_dir_names=[".git"])
+        filtered_files = folder_paths.filter_files_extensions(files, extension)
 
-    abs_list = sorted(list(set(abs_list)))
+        for f in filtered_files:
+            output[f] = x
 
-    names = []
-    for x in abs_list:
-        remain = x
-        y = ''
-        while remain != inpaint_path:
-            remain, folder = os.path.split(remain)
-            if len(y) > 0:
-                y = os.path.join(folder, y)
-            else:
-                y = folder
-        names.append(y)     
-    return names, inpaint_path
+    return output
 
 
 def brushnet_blocks(sd):

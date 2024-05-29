@@ -13,7 +13,7 @@ def add_model_patch_option(model):
 
 
 # Patch model with model_function_wrapper
-def patch_model_function_wrapper(model, forward_patch):
+def patch_model_function_wrapper(model, forward_patch, remove=False):
 
     def brushnet_model_function_wrapper(apply_model_method, options_dict):
         to = options_dict['c']['transformer_options']
@@ -67,7 +67,11 @@ def patch_model_function_wrapper(model, forward_patch):
         raise Exception("Unsupported model type: ", type(model.model.model_config))
 
     if 'forward' not in mp:
-        mp['forward'] = [forward_patch]
+        mp['forward'] = []
+
+    if remove:
+        if forward_patch in mp['forward']:
+            mp['forward'].remove(forward_patch)
     else:
         mp['forward'].append(forward_patch)
 
