@@ -189,6 +189,7 @@ class PowerPaint:
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
                         "start_at": ("INT", {"default": 0, "min": 0, "max": 10000}),
                         "end_at": ("INT", {"default": 10000, "min": 0, "max": 10000}),
+                        "debug": (['False', 'True'], ),
                      },
         }
     
@@ -198,7 +199,7 @@ class PowerPaint:
 
     FUNCTION = "model_update"
 
-    def model_update(self, model, vae, image, mask, powerpaint, clip, positive, negative, fitting, function, scale, start_at, end_at):
+    def model_update(self, model, vae, image, mask, powerpaint, clip, positive, negative, fitting, function, scale, start_at, end_at, debug):
 
         is_SDXL, is_PP = check_compatibilty(model, powerpaint)
         if not is_PP:
@@ -297,7 +298,8 @@ class PowerPaint:
                            conditioning_latents, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
                            negative_prompt_embeds_pp, prompt_embeds_pp, 
-                           None, None, None)
+                           None, None, None,
+                           'True' in debug)
 
         latent = torch.zeros([batch, 4, conditioning_latents[0].shape[2], conditioning_latents[0].shape[3]], device=powerpaint['brushnet'].device)
 
@@ -419,7 +421,8 @@ class BrushNet:
                            conditioning_latents, 
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
                            prompt_embeds, negative_prompt_embeds,
-                           pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids)
+                           pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids,
+                           False)
 
         latent = torch.zeros([batch, 4, conditioning_latents[0].shape[2], conditioning_latents[0].shape[3]], device=brushnet['brushnet'].device)
 
@@ -752,7 +755,7 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
 
 # Main function where magic happens
 @torch.inference_mode()
-def brushnet_inference(x, timesteps, transformer_options):
+def brushnet_inference(x, timesteps, transformer_options, debug):
     if 'model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch key in transformer_options')
         return ([], 0, [])
@@ -911,6 +914,8 @@ def brushnet_inference(x, timesteps, transformer_options):
     if step == 0:
         print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
 
+    if debug: print('BrushNet: step =', step)
+
     if step < control_guidance_start or step > control_guidance_end:
         cond_scale = 0.0
     else:
@@ -924,6 +929,7 @@ def brushnet_inference(x, timesteps, transformer_options):
                     guess_mode=False,
                     added_cond_kwargs=added_cond_kwargs,
                     return_dict=False,
+                    debug=debug,
                 )
 
 
@@ -931,7 +937,8 @@ def brushnet_inference(x, timesteps, transformer_options):
 def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents, 
                        controls, 
                        prompt_embeds, negative_prompt_embeds,
-                       pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids):
+                       pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids,
+                       debug):
     
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
@@ -1003,7 +1010,7 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
             output_samples = []
         else:    
             # brushnet inference
-            input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options)
+            input_samples, mid_sample, output_samples = brushnet_inference(x, timesteps, transformer_options, debug)
 
         # give additional samples to blocks
         for i, tp in input_blocks:

@@ -691,6 +691,7 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guess_mode: bool = False,
         return_dict: bool = True,
+        debug = False,
     ) -> Union[BrushNetOutput, Tuple[Tuple[torch.FloatTensor, ...], torch.FloatTensor]]:
         """
         The [`BrushNetModel`] forward method.

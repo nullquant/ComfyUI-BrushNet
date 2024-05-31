@@ -699,6 +699,7 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guess_mode: bool = False,
         return_dict: bool = True,
+        debug=False,
     ) -> Union[BrushNetOutput, Tuple[Tuple[torch.FloatTensor, ...], torch.FloatTensor]]:
         """
         The [`BrushNetModel`] forward method.
@@ -750,10 +751,14 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         else:
             raise ValueError(f"unknown `brushnet_conditioning_channel_order`: {channel_order}")
 
+        if debug: print('BrushNet CA: attn mask')
+
         # prepare attention_mask
         if attention_mask is not None:
             attention_mask = (1 - attention_mask.to(sample.dtype)) * -10000.0
             attention_mask = attention_mask.unsqueeze(1)
+
+        if debug: print('BrushNet CA: time')
 
         # 1. time
         timesteps = timestep
@@ -816,9 +821,14 @@ class BrushNetModel(ModelMixin, ConfigMixin):
 
         emb = emb + aug_emb if aug_emb is not None else emb
 
+        if debug: print('BrushNet CA: pre-process')
+
+
         # 2. pre-process
         brushnet_cond = torch.concat([sample, brushnet_cond], 1)
         sample = self.conv_in_condition(brushnet_cond)
+
+        if debug: print('BrushNet CA: down')
 
         # 3. down
         down_block_res_samples = (sample,)
@@ -836,11 +846,15 @@ class BrushNetModel(ModelMixin, ConfigMixin):
 
             down_block_res_samples += res_samples
 
+        if debug: print('BrushNet CA: PP down')
+
         # 4. PaintingNet down blocks
         brushnet_down_block_res_samples = ()
         for down_block_res_sample, brushnet_down_block in zip(down_block_res_samples, self.brushnet_down_blocks):
             down_block_res_sample = brushnet_down_block(down_block_res_sample)
             brushnet_down_block_res_samples = brushnet_down_block_res_samples + (down_block_res_sample,)
+
+        if debug: print('BrushNet CA: PP mid')
 
         # 5. mid
         if self.mid_block is not None:
@@ -855,8 +869,12 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             else:
                 sample = self.mid_block(sample, emb)
 
+        if debug: print('BrushNet CA: mid')
+
         # 6. BrushNet mid blocks
         brushnet_mid_block_res_sample = self.brushnet_mid_block(sample)
+
+        if debug: print('BrushNet CA: PP up')
 
         # 7. up
         up_block_res_samples = ()
@@ -893,11 +911,15 @@ class BrushNetModel(ModelMixin, ConfigMixin):
 
             up_block_res_samples += up_res_samples
 
+        if debug: print('BrushNet CA: up')
+
         # 8. BrushNet up blocks
         brushnet_up_block_res_samples = ()
         for up_block_res_sample, brushnet_up_block in zip(up_block_res_samples, self.brushnet_up_blocks):
             up_block_res_sample = brushnet_up_block(up_block_res_sample)
             brushnet_up_block_res_samples = brushnet_up_block_res_samples + (up_block_res_sample,)
+
+        if debug: print('BrushNet CA: scaling')
 
         # 6. scaling
         if guess_mode and not self.config.global_pool_conditions:
@@ -939,6 +961,8 @@ class BrushNetModel(ModelMixin, ConfigMixin):
             brushnet_up_block_res_samples = [
                 torch.mean(sample, dim=(2, 3), keepdim=True) for sample in brushnet_up_block_res_samples
             ]
+
+        if debug: print('BrushNet CA: finish')
 
         if not return_dict:
             return (brushnet_down_block_res_samples, brushnet_mid_block_res_sample, brushnet_up_block_res_samples)
