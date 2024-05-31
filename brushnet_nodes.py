@@ -189,7 +189,7 @@ class PowerPaint:
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
                         "start_at": ("INT", {"default": 0, "min": 0, "max": 10000}),
                         "end_at": ("INT", {"default": 10000, "min": 0, "max": 10000}),
-                        "save_memory": (['auto', 'max'], ),
+                        "save_memory": (['none', 'auto', 'max'], ),
                      },
         }
     
@@ -292,7 +292,8 @@ class PowerPaint:
         control_guidance_start = start_at
         control_guidance_end = end_at
 
-        powerpaint['brushnet'].set_attention_slice(save_memory)
+        if save_memory != 'none':
+            powerpaint['brushnet'].set_attention_slice(save_memory)
 
         add_brushnet_patch(model, 
                            powerpaint['brushnet'],
