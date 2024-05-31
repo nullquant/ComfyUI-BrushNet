@@ -7,12 +7,6 @@ import torchvision.transforms as T
 import torch.nn.functional as F
 from accelerate import init_empty_weights, load_checkpoint_and_dispatch
 
-#import sys
-#from sys import platform
-# Get the parent directory of 'comfy' and add it to the Python path
-#comfy_parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-#sys.path.append(comfy_parent_dir)
-
 import comfy
 import folder_paths
 
@@ -607,6 +601,7 @@ def get_files_with_extension(folder_name, extension=['.safetensors']):
     return output
 
 
+# get blocks from state_dict so we could know which model it is
 def brushnet_blocks(sd):
     brushnet_down_block = 0
     brushnet_mid_block = 0
@@ -672,6 +667,7 @@ def check_image_mask(image, mask, name):
 
     return (image, mask)
 
+
 # Prepare image and mask
 def prepare_image(image, mask):
 
@@ -690,6 +686,7 @@ def prepare_image(image, mask):
     return (masked_image, mask)
 
 
+# Get origin of the mask
 def cut_with_mask(mask, width, height):
     iy, ix = (mask == 1).nonzero(as_tuple=True)
 
