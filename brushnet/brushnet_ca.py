@@ -834,15 +834,18 @@ class BrushNetModel(ModelMixin, ConfigMixin):
         down_block_res_samples = (sample,)
         for downsample_block in self.down_blocks:
             if hasattr(downsample_block, "has_cross_attention") and downsample_block.has_cross_attention:
+                if debug: print('BrushNet CA (down block with XA): ', type(downsample_block))
                 sample, res_samples = downsample_block(
                     hidden_states=sample,
                     temb=emb,
                     encoder_hidden_states=encoder_hidden_states,
                     attention_mask=attention_mask,
                     cross_attention_kwargs=cross_attention_kwargs,
+                    debug=debug,
                 )
             else:
-                sample, res_samples = downsample_block(hidden_states=sample, temb=emb)
+                if debug: print('BrushNet CA (down block): ', type(downsample_block))
+                sample, res_samples = downsample_block(hidden_states=sample, temb=emb, debug=debug)
 
             down_block_res_samples += res_samples
 

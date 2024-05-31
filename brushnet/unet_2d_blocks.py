@@ -1339,7 +1339,11 @@ class CrossAttnDownBlock2D(nn.Module):
         encoder_attention_mask: Optional[torch.FloatTensor] = None,
         additional_residuals: Optional[torch.FloatTensor] = None,
         down_block_add_samples: Optional[torch.FloatTensor] = None,
+        debug = False,
     ) -> Tuple[torch.FloatTensor, Tuple[torch.FloatTensor, ...]]:
+        
+        if debug: print('    XAD2: forward')
+
         if cross_attention_kwargs is not None:
             if cross_attention_kwargs.get("scale", None) is not None:
                 logger.warning("Passing `scale` to `cross_attention_kwargs` is deprecated. `scale` will be ignored.")
@@ -1376,7 +1380,14 @@ class CrossAttnDownBlock2D(nn.Module):
                     return_dict=False,
                 )[0]
             else:
+                if debug: print('    XAD2: resnet hs #', i, hidden_states.shape)
+                if debug and temb is not None: print('    XAD2: resnet temb #', i, temb.shape)
+
                 hidden_states = resnet(hidden_states, temb)
+
+                if debug: print('    XAD2: attn hs #', i, hidden_states.shape)
+                if debug and encoder_hidden_states is not None: print('    XAD2: attn ehs #', i, encoder_hidden_states.shape)
+
                 hidden_states = attn(
                     hidden_states,
                     encoder_hidden_states=encoder_hidden_states,
@@ -1388,11 +1399,18 @@ class CrossAttnDownBlock2D(nn.Module):
 
             # apply additional residuals to the output of the last pair of resnet and attention blocks
             if i == len(blocks) - 1 and additional_residuals is not None:
+
+                if debug: print('    XAD2: add res', additional_residuals.shape)
+            
                 hidden_states = hidden_states + additional_residuals
 
             if down_block_add_samples is not None:
+
+                if debug: print('    XAD2: add samples', down_block_add_samples.shape)
+
                 hidden_states = hidden_states + down_block_add_samples.pop(0) 
 
+            if debug: print('    XAD2: output', hidden_states.shape)
 
             output_states = output_states + (hidden_states,)
 
@@ -1404,6 +1422,11 @@ class CrossAttnDownBlock2D(nn.Module):
                 hidden_states = hidden_states + down_block_add_samples.pop(0) # todo: add before or after
 
             output_states = output_states + (hidden_states,)
+
+        if debug: 
+            print('    XAD2: finish')
+            for st in output_states:
+                print('    XAD2: ',st.shape)
 
         return hidden_states, output_states
 
@@ -1470,6 +1493,8 @@ class DownBlock2D(nn.Module):
 
         output_states = ()
 
+        if kwargs.get("debug", False): print('    D2: forward', hidden_states.shape)
+
         for resnet in self.resnets:
             if self.training and self.gradient_checkpointing:
 
@@ -1488,6 +1513,9 @@ class DownBlock2D(nn.Module):
                         create_custom_forward(resnet), hidden_states, temb
                     )
             else:
+
+                if kwargs.get("debug", False): print('    D2: resnet', hidden_states.shape)
+
                 hidden_states = resnet(hidden_states, temb)
 
             if down_block_add_samples is not None:
@@ -1504,6 +1532,8 @@ class DownBlock2D(nn.Module):
 
             output_states = output_states + (hidden_states,)
 
+        if kwargs.get("debug", False): print('    D2: finish', hidden_states.shape)
+            
         return hidden_states, output_states
 
 
