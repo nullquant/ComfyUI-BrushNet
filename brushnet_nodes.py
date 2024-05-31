@@ -189,7 +189,7 @@ class PowerPaint:
                         "scale": ("FLOAT", {"default": 1.0, "min": 0.0, "max": 10.0}),
                         "start_at": ("INT", {"default": 0, "min": 0, "max": 10000}),
                         "end_at": ("INT", {"default": 10000, "min": 0, "max": 10000}),
-                        "debug": (['False', 'True'], ),
+                        "save_memory": (['auto', 'max'], ),
                      },
         }
     
@@ -199,7 +199,7 @@ class PowerPaint:
 
     FUNCTION = "model_update"
 
-    def model_update(self, model, vae, image, mask, powerpaint, clip, positive, negative, fitting, function, scale, start_at, end_at, debug):
+    def model_update(self, model, vae, image, mask, powerpaint, clip, positive, negative, fitting, function, scale, start_at, end_at, save_memory):
 
         is_SDXL, is_PP = check_compatibilty(model, powerpaint)
         if not is_PP:
@@ -292,6 +292,8 @@ class PowerPaint:
         control_guidance_start = start_at
         control_guidance_end = end_at
 
+        powerpaint['brushnet'].set_attention_slice(save_memory)
+
         add_brushnet_patch(model, 
                            powerpaint['brushnet'],
                            torch_dtype,
@@ -299,7 +301,7 @@ class PowerPaint:
                            (brushnet_conditioning_scale, control_guidance_start, control_guidance_end), 
                            negative_prompt_embeds_pp, prompt_embeds_pp, 
                            None, None, None,
-                           'True' in debug)
+                           False)
 
         latent = torch.zeros([batch, 4, conditioning_latents[0].shape[2], conditioning_latents[0].shape[3]], device=powerpaint['brushnet'].device)
 
@@ -912,7 +914,7 @@ def brushnet_inference(x, timesteps, transformer_options, debug):
         ).to(torch_dtype).to(brushnet.device)
 
     if step == 0:
-        print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape)
+        print('BrushNet inference: sample', x.shape, ', CL', conditioning_latents.shape, 'dtype', torch_dtype)
 
     if debug: print('BrushNet: step =', step)
 

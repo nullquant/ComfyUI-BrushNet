@@ -209,6 +209,7 @@ You should try to add object description to negative prompt and describe empty s
 - `CLIP`: PowerPaint CLIP that should be passed from PowerPaintCLIPLoader node.
 - `fitting`: PowerPaint fitting degree.
 - `function`: PowerPaint function, see its [page](https://github.com/open-mmlab/PowerPaint) for details.
+- `save_memory`: If this option is set to `max`, the attention module splits the input tensor in slices to compute attention in several steps. This is useful for saving some memory in exchange for a decrease in speed.
 
 When using certain network functions, the authors of PowerPaint recommend adding phrases to the prompt:
 
