@@ -1,5 +1,6 @@
 from .brushnet_nodes import BrushNetLoader, BrushNet, BlendInpaint, PowerPaintCLIPLoader, PowerPaint, CutForInpaint
 from .raunet_nodes import RAUNet
+import torch
 from subprocess import getoutput
 
 """
@@ -19,8 +20,8 @@ class Terminal:
                 }
     
     CATEGORY = "Tools"
-    RETURN_TYPES = ("STRING", )
-    RETURN_NAMES = ("text", )
+    RETURN_TYPES = ("IMAGE", )
+    RETURN_NAMES = ("image", )
     OUTPUT_NODE = True
 
     FUNCTION = "execute"
@@ -31,7 +32,7 @@ class Terminal:
             print(out)
         else:
             exec(f"{text}")
-        return (text, )
+        return (torch.zeros(1, 128, 128, 4), )
 
 
 
