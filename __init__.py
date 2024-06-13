@@ -19,7 +19,7 @@ class Terminal:
                     }
                 }
     
-    CATEGORY = "Tools"
+    CATEGORY = "utils"
     RETURN_TYPES = ("IMAGE", )
     RETURN_NAMES = ("image", )
     OUTPUT_NODE = True
