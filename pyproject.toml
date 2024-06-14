@@ -1,0 +1,15 @@
+[project]
+name = "comfyui-brushnet"
+description = "Custom nodes for ComfyUI allow to inpaint using Brushnet: '[a/BrushNet: A Plug-and-Play Image Inpainting Model with Decomposed Dual-Branch Diffusion](https://arxiv.org/abs/2403.06976)'."
+version = "1.0.0"
+license = "LICENSE"
+dependencies = ["diffusers>=0.27.0", "accelerate>=0.29.0", "peft>=0.7.0"]
+
+[project.urls]
+Repository = "https://github.com/nullquant/ComfyUI-BrushNet"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = ""
+DisplayName = "ComfyUI-BrushNet"
+Icon = ""
