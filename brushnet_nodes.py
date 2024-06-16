@@ -702,7 +702,7 @@ def cut_with_mask(mask, width, height):
         y_max = iy.max().item()
 
         if x_max - x_min > width or y_max - y_min > height:
-            raise Exception("Mask is bigger than provided dimensions")
+            raise Exception("Masked area is bigger than provided dimensions")
 
         x_c = (x_min + x_max) / 2.0
         y_c = (y_min + y_max) / 2.0
