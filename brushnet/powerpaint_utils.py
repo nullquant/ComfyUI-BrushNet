@@ -409,7 +409,7 @@ class EmbeddingLayerWithFixes(nn.Module):
 
         return torch.cat(new_embedding, dim=0)
 
-    def forward(self, input_ids: torch.Tensor, external_embeddings: Optional[List[dict]] = None):
+    def forward(self, input_ids: torch.Tensor, external_embeddings: Optional[List[dict]] = None, out_dtype = None):
         """The forward function.
 
         Args:
@@ -421,12 +421,13 @@ class EmbeddingLayerWithFixes(nn.Module):
 
         input_ids: shape like [bz, LENGTH] or [LENGTH].
         """
+
         assert input_ids.ndim in [1, 2]
         if input_ids.ndim == 1:
             input_ids = input_ids.unsqueeze(0)
 
         if external_embeddings is None and not self.external_embeddings:
-            return self.wrapped(input_ids)
+            return self.wrapped(input_ids, out_dtype=out_dtype)
 
         input_ids_fwd = self.replace_input_ids(input_ids)
         inputs_embeds = self.wrapped(input_ids_fwd)
@@ -445,7 +446,7 @@ class EmbeddingLayerWithFixes(nn.Module):
                 new_embedding = self.replace_embeddings(input_id, new_embedding, external_embedding)
             vecs.append(new_embedding)
 
-        return torch.stack(vecs)
+        return torch.stack(vecs).to(out_dtype)
 
 
 
