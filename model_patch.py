@@ -32,6 +32,12 @@ def patch_model_function_wrapper(model, forward_patch, remove=False):
         mp = to['model_patch']
         unet = mp['unet']
         
+
+
+        #print(model.get_model_object("model_sampling").sigmas, len(model.get_model_object("model_sampling").sigmas))
+        #print(mp['all_sigmas'], len(mp['all_sigmas']))
+
+
         all_sigmas = mp['all_sigmas']
         sigma = to['sigmas'][0].item()
         total_steps = all_sigmas.shape[0] - 1

@@ -52,7 +52,7 @@ You should place `diffusion_pytorch_model.safetensors` files to your `models/inp
 
 For PowerPaint you should download three files. Both `diffusion_pytorch_model.safetensors` and `pytorch_model.bin` from [here](https://huggingface.co/JunhaoZhuang/PowerPaint-v2-1/tree/main/PowerPaint_Brushnet) should be placed in your `models/inpaint` folder.
 
-Also you need SD1.5 text encoder model `model.fp16.safetensors` from [here](https://huggingface.co/runwayml/stable-diffusion-v1-5/tree/main/text_encoder). It should be placed in your `models/clip` folder.
+Also you need SD1.5 text encoder model `model.safetensors`. You can take it from [here](https://huggingface.co/ashllay/stable-diffusion-v1-5-archive/tree/main/text_encoder) or from another place. You can also use fp16 [version](https://huggingface.co/nmkd/stable-diffusion-1.5-fp16/tree/main/text_encoder). It should be placed in your `models/clip` folder.
 
 This is a structure of my `models/inpaint` folder:
 
