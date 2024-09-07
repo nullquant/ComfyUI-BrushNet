@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-brushnet"
 description = "These are custom nodes for ComfyUI native implementation of BrushNet (inpaint), PowerPaint (inpaint, object removal) and HiDiffusion (higher resolution for SD15 and SDXL)"
-version = "1.0.1"
+version = "1.0.2"
 license = { text = "Apache License 2.0" }
 dependencies = ["diffusers>=0.27.0", "accelerate>=0.29.0", "peft>=0.7.0"]
 
