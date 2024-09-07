@@ -10,6 +10,7 @@ from subprocess import getoutput
 @description: These are custom nodes for ComfyUI native implementation of BrushNet, PowerPaint and RAUNet models
 """
 
+'''
 class Terminal:
 
     @classmethod
@@ -33,7 +34,7 @@ class Terminal:
         else:
             exec(f"{text}")
         return (torch.zeros(1, 128, 128, 4), )
-
+'''
 
 
 # A dictionary that contains all nodes you want to export with their names
@@ -46,7 +47,7 @@ NODE_CLASS_MAPPINGS = {
     "PowerPaint": PowerPaint,
     "CutForInpaint": CutForInpaint,
     "RAUNet": RAUNet,
-    "Terminal": Terminal,
+    #"Terminal": Terminal,
 }
 
 # A dictionary that contains the friendly/humanly readable titles for the nodes
@@ -58,5 +59,5 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "PowerPaint": "PowerPaint",
     "CutForInpaint": "Cut For Inpaint",
     "RAUNet": "RAUNet",
-    "Terminal": "Terminal",
+    #"Terminal": "Terminal",
 }
