@@ -569,12 +569,8 @@ def get_files_with_extension(folder_name, extension=['.safetensors']):
         folders = []
 
     if not folders:
-        folders = [os.path.join(folder_paths.models_dir, folder_name)]
-    if not os.path.isdir(folders[0]):
-        folders = [os.path.join(folder_paths.base_path, folder_name)]
-    if not os.path.isdir(folders[0]):
-        return {}
-    
+        folders = [os.path.join(folder_paths.models_dir, folder_name), os.path.join(folder_paths.base_path, folder_name)]
+
     filtered_folders = []
     for x in folders:
         if not os.path.isdir(x):
