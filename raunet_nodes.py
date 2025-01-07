@@ -42,11 +42,11 @@ class RAUNet:
 def add_raunet_patch(model, du_start, du_end, xa_start, xa_end):
     
     def raunet_forward(model, x, timesteps, transformer_options, control):
-        if 'model_patch' not in transformer_options:
-            print("RAUNet: 'model_patch' not in transformer_options, skip")
+        if 'brush_model_patch' not in transformer_options:
+            print("RAUNet: 'brush_model_patch' not in transformer_options, skip")
             return
 
-        mp = transformer_options['model_patch']
+        mp = transformer_options['brush_model_patch']
         is_SDXL = mp['SDXL']
 
         if is_SDXL and type(model.input_blocks[6][0]) != comfy.ldm.modules.diffusionmodules.openaimodel.Downsample:
@@ -87,7 +87,7 @@ def add_raunet_patch(model, du_start, du_end, xa_start, xa_end):
     model.set_model_output_block_patch(out_xattn_patch)
 
     to = add_model_patch_option(model)
-    mp = to['model_patch']
+    mp = to['brush_model_patch']
     if 'raunet' not in mp:
         mp['raunet'] = {}
     ro = mp['raunet']
@@ -103,10 +103,10 @@ def in_xattn_patch(h, transformer_options):
     if transformer_options["block"] != ("input", 4):
         # wrong block
         return h
-    if 'model_patch' not in transformer_options:
-        print("RAUNet (i-x-p): 'model_patch' not in transformer_options")
+    if 'brush_model_patch' not in transformer_options:
+        print("RAUNet (i-x-p): 'brush_model_patch' not in transformer_options")
         return h
-    mp = transformer_options['model_patch']
+    mp = transformer_options['brush_model_patch']
     if 'raunet' not in mp:
         print("RAUNet (i-x-p): 'raunet' not in model_patch options")
         return h
@@ -123,10 +123,10 @@ def in_xattn_patch(h, transformer_options):
 
 
 def out_xattn_patch(h, hsp, transformer_options):
-    if 'model_patch' not in transformer_options:
-        print("RAUNet (o-x-p): 'model_patch' not in transformer_options")
+    if 'brush_model_patch' not in transformer_options:
+        print("RAUNet (o-x-p): 'brush_model_patch' not in transformer_options")
         return h, hsp
-    mp = transformer_options['model_patch']
+    mp = transformer_options['brush_model_patch']
     if 'raunet' not in mp:
         print("RAUNet (o-x-p): 'raunet' not in model_patch options")
         return h
