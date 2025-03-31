@@ -1,5 +1,4 @@
 import os
-import types
 from typing import Tuple
 
 import torch
@@ -274,11 +273,11 @@ class PowerPaint:
         # unload vae and CLIPs
         del vae
         del clip
-        for loaded_model in comfy.model_management.current_loaded_models:
-            if type(loaded_model.model.model) in ModelsToUnload:
-                comfy.model_management.current_loaded_models.remove(loaded_model)
-                loaded_model.model_unload()
-                del loaded_model
+        # for loaded_model in comfy.model_management.current_loaded_models:
+        #     if type(loaded_model.model) in ModelsToUnload:
+        #         comfy.model_management.current_loaded_models.remove(loaded_model)
+        #         loaded_model.model_unload()
+        #         del loaded_model
 
         # apply patch to model
 
@@ -362,11 +361,11 @@ class BrushNet:
 
         # unload vae
         del vae
-        for loaded_model in comfy.model_management.current_loaded_models:
-            if type(loaded_model.model.model) in ModelsToUnload:
-                comfy.model_management.current_loaded_models.remove(loaded_model)
-                loaded_model.model_unload()
-                del loaded_model
+        # for loaded_model in comfy.model_management.current_loaded_models:
+        #     if type(loaded_model.model) in ModelsToUnload:
+        #         comfy.model_management.current_loaded_models.remove(loaded_model)
+        #         loaded_model.model_unload()
+        #         del loaded_model
 
         # prepare embeddings
 
@@ -752,14 +751,14 @@ def get_image_latents(masked_image, mask, vae, scaling_factor):
 # Main function where magic happens
 @torch.inference_mode()
 def brushnet_inference(x, timesteps, transformer_options, debug):
-    if 'model_patch' not in transformer_options:
+    if 'brush_model_patch' not in transformer_options:
         print('BrushNet inference: there is no model_patch key in transformer_options')
         return ([], 0, [])
-    mp = transformer_options['model_patch']
-    if 'brushnet' not in mp:
+    brush_model_patch = transformer_options['brush_model_patch']
+    if 'brushnet' not in brush_model_patch:
         print('BrushNet inference: there is no brushnet key in mdel_patch')
         return ([], 0, [])
-    bo = mp['brushnet']
+    bo = brush_model_patch['brushnet']
     if 'model' not in bo:
         print('BrushNet inference: there is no model key in brushnet')
         return ([], 0, [])
@@ -784,8 +783,8 @@ def brushnet_inference(x, timesteps, transformer_options, debug):
     timesteps = timesteps.detach().clone()
     timesteps = timesteps.to(torch_dtype).to(brushnet.device)
 
-    total_steps = mp['total_steps']
-    step = mp['step']
+    total_steps = brush_model_patch['total_steps']
+    step = brush_model_patch['step']
 
     added_cond_kwargs = {}
 
@@ -938,8 +937,16 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     
     is_SDXL = isinstance(model.model.model_config, comfy.supported_models.SDXL)
 
+    if model.model.model_config.custom_operations is None:
+        fp8 = model.model.model_config.optimizations.get("fp8", model.model.model_config.scaled_fp8 is not None)
+        operations = comfy.ops.pick_operations(model.model.model_config.unet_config.get("dtype", None), model.model.manual_cast_dtype,
+                                               fp8_optimizations=fp8, scaled_fp8=model.model.model_config.scaled_fp8)
+    else:
+        # such as gguf
+        operations = model.model.model_config.custom_operations
+
     if is_SDXL:
-        input_blocks = [[0, comfy.ops.disable_weight_init.Conv2d],
+        input_blocks = [[0, operations.Conv2d],
                         [1, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
                         [2, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
                         [3, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
@@ -961,7 +968,7 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
                         [7, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock],
                         [8, comfy.ldm.modules.diffusionmodules.openaimodel.ResBlock]]
     else:
-        input_blocks = [[0, comfy.ops.disable_weight_init.Conv2d],
+        input_blocks = [[0, operations.Conv2d],
                         [1, comfy.ldm.modules.attention.SpatialTransformer],
                         [2, comfy.ldm.modules.attention.SpatialTransformer],
                         [3, comfy.ldm.modules.diffusionmodules.openaimodel.Downsample],
@@ -999,8 +1006,10 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
             return -1, layer_list.reverse()
         return len(layer_list) - 1 - layer_list.index(tp), layer_list
 
-    def brushnet_forward(model, x, timesteps, transformer_options, control):
-        if 'brushnet' not in transformer_options['model_patch']:
+    def brushnet_forward(unetModel, x, timesteps, transformer_options, control):
+        # 这里的model是unetModel
+        brush_model_patch = transformer_options['brush_model_patch']
+        if 'brushnet' not in brush_model_patch:
             input_samples = []
             mid_sample = 0
             output_samples = []
@@ -1010,31 +1019,32 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
 
         # give additional samples to blocks
         for i, tp in input_blocks:
-            idx, layer_list = last_layer_index(model.input_blocks[i], tp)
+            idx, layer_list = last_layer_index(unetModel.input_blocks[i], tp)
             if idx < 0:
                 print("BrushNet can't find", tp, "layer in", i,"input block:", layer_list)
                 continue
-            model.input_blocks[i][idx].add_sample_after = input_samples.pop(0) if input_samples else 0
+            unetModel.input_blocks[i][idx].add_sample_after = input_samples.pop(0) if input_samples else 0
 
-        idx, layer_list = last_layer_index(model.middle_block, middle_block[1])
+        idx, layer_list = last_layer_index(unetModel.middle_block, middle_block[1])
         if idx < 0:
             print("BrushNet can't find", middle_block[1], "layer in middle block", layer_list)
-        model.middle_block[idx].add_sample_after = mid_sample
+        unetModel.middle_block[idx].add_sample_after = mid_sample
 
         for i, tp in output_blocks:
-            idx, layer_list = last_layer_index(model.output_blocks[i], tp)
+            idx, layer_list = last_layer_index(unetModel.output_blocks[i], tp)
             if idx < 0:
                 print("BrushNet can't find", tp, "layer in", i,"outnput block:", layer_list)
                 continue
-            model.output_blocks[i][idx].add_sample_after = output_samples.pop(0) if output_samples else 0
+            unetModel.output_blocks[i][idx].add_sample_after = output_samples.pop(0) if output_samples else 0
 
     patch_model_function_wrapper(model, brushnet_forward)
 
     to = add_model_patch_option(model)
-    mp = to['model_patch']
-    if 'brushnet' not in mp:
-        mp['brushnet'] = {}
-    bo = mp['brushnet']
+    brush_model_patch = to['brush_model_patch']
+
+    if 'brushnet' not in brush_model_patch:
+        brush_model_patch['brushnet'] = {}
+    bo = brush_model_patch['brushnet']
 
     bo['model'] = brushnet
     bo['dtype'] = torch_dtype
@@ -1045,37 +1055,4 @@ def add_brushnet_patch(model, brushnet, torch_dtype, conditioning_latents,
     bo['add_embeds'] = (pooled_prompt_embeds, negative_pooled_prompt_embeds, time_ids)
     bo['latent_id'] = 0
 
-    # patch layers `forward` so we can apply brushnet
-    def forward_patched_by_brushnet(self, x, *args, **kwargs):
-        h = self.original_forward(x, *args, **kwargs)
-        if hasattr(self, 'add_sample_after') and type(self):
-            to_add = self.add_sample_after
-            if torch.is_tensor(to_add):
-                # interpolate due to RAUNet
-                if h.shape[2] != to_add.shape[2] or h.shape[3] != to_add.shape[3]:
-                    to_add = torch.nn.functional.interpolate(to_add, size=(h.shape[2], h.shape[3]), mode='bicubic')                  
-                h += to_add.to(h.dtype).to(h.device)
-            else:
-                h += self.add_sample_after
-            self.add_sample_after = 0
-        return h
 
-    for i, block in enumerate(model.model.diffusion_model.input_blocks):
-        for j, layer in enumerate(block):
-            if not hasattr(layer, 'original_forward'):
-                layer.original_forward = layer.forward
-            layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
-            layer.add_sample_after = 0
-
-    for j, layer in enumerate(model.model.diffusion_model.middle_block):
-        if not hasattr(layer, 'original_forward'):
-            layer.original_forward = layer.forward
-        layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
-        layer.add_sample_after = 0
-
-    for i, block in enumerate(model.model.diffusion_model.output_blocks):
-        for j, layer in enumerate(block):
-            if not hasattr(layer, 'original_forward'):
-                layer.original_forward = layer.forward
-            layer.forward = types.MethodType(forward_patched_by_brushnet, layer)
-            layer.add_sample_after = 0
